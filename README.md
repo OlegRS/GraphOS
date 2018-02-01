@@ -1,2 +1,2 @@
 # GraphOS
-C++, Python library for network theory simulations
+C++/Python library for network theory simulations
