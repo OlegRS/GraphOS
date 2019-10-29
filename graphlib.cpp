@@ -5,30 +5,50 @@
 
 #define QUIET_MODE  // disables printing of some common warnings and info
 // #define SILENT_MODE // disables printing of most warnings and info
+#ifdef SILENT_MODE
+#define QUIET_MODE
+#endif
 
 //////////////////////////////////////////////////////////////////
 ////////////////////////// graph /////////////////////////////////
 //////////////////////////////////////////////////////////////////
 
-graph::graph() : NODES_SORTED(false), NODES_ARRAY_SIZE(0), nodes(NULL), labels(NULL), N_nodes(0), N_labels(0), N_links(0) {}
+graph::graph() : NODES_ARRAY_SIZE(0), nodes(NULL), labels(NULL), N_nodes(0), N_labels(0), N_links(0) {}
 
-graph::graph(const unsigned int& N) : NODES_SORTED(false), NODES_ARRAY_SIZE(N), labels(NULL), N_nodes(0), N_labels(0), N_links(0) {
+graph::graph(const unsigned int& N) : NODES_ARRAY_SIZE(N), labels(NULL), N_nodes(0), N_labels(0), N_links(0) {
   nodes = new node[N];
+}
+
+graph::graph(const graph& gr) : NODES_ARRAY_SIZE(gr.NODES_ARRAY_SIZE), N_nodes(gr.N_nodes), N_labels(gr.N_labels), N_links(gr.N_links) {
+  nodes = new node[NODES_ARRAY_SIZE];
+  for(unsigned int i=0; i<N_nodes; ++i)
+    nodes[i] = gr.nodes[i];
+
+  labels = new label[N_labels];
+  for(unsigned int i=0; i<N_labels; ++i)
+    labels[i] = gr.labels[i];
+
+  // Copying links, redirecting node pointers
+  for(std::list<link>::const_iterator it_links = gr.links.begin(); it_links!=gr.links.end(); ++it_links) {
+    links.push_back(*it_links);
+    links.back().node1 = nodes + (it_links->node1 - gr.nodes);
+    links.back().node2 = nodes + (it_links->node2 - gr.nodes);
+  }
 }
 
 //////////////////////////////////////////////////////////////////
 
 graph::graph(const std::string &graph_file, unsigned int N_additional_nodes) {
 #ifndef SILENT_MODE
-  std::cout << "***Loading the graph from \".graph\" file...\n";
+  std::cerr << "***Loading the graph from \".graph\" file...\n";
 #endif
   std::ifstream ifs(graph_file.c_str());
   
   if( !ifs.is_open() ) {
-    std::cerr << "------------------------------------------------------------------------\n";
-    std::cerr << "ERROR: Cannot open the file \"" << graph_file << "\" to load the graph!\n";
-    std::cerr << "                      !!! GRAPH IS NOT LOADED !!!\n";
-    std::cerr << "------------------------------------------------------------------------\n";
+    std::cerr << "------------------------------------------------------------------------\n"
+              << "ERROR: Cannot open the file \"" << graph_file << "\" to load the graph!\n"
+              << "                      !!! GRAPH IS NOT LOADED !!!\n"
+              << "------------------------------------------------------------------------\n";
 #ifdef INTERPRETER_MODE
     return;
 #else
@@ -81,8 +101,53 @@ graph::graph(const std::string &graph_file, unsigned int N_additional_nodes) {
   ifs.close();
   
 #ifndef SILENT_MODE
-  std::cout << "*Graph of "<< N_nodes <<" nodes and "<< N_links <<" links is loaded from \"" << graph_file << "\" file.\n";
+  std::cerr << "*Graph of "<< N_nodes <<" nodes and "<< N_links <<" links is loaded from \"" << graph_file << "\" file.\n";
 #endif
+}
+
+graph::graph(const matrix<bool>& A) : NODES_ARRAY_SIZE(0), N_nodes(0), N_labels(0), N_links(0) {
+  ///// CONSISTENCY CHECKS FOR ADJACENCY MATRIX /////
+  //Check that matrix is square
+  unsigned int dim_x = A.get_dim_x();
+  unsigned int dim_y = A.get_dim_y();
+  if(dim_x != dim_y) {
+    std::cerr << "-----------------------------------------\n"
+              << "ERROR: Adjecency matrix should be square!\n"
+              << "-----------------------------------------\n";
+    exit(1);
+  }
+  //Check that matrix is symmetric
+  double sum = 0;
+  for(unsigned int i=0; i<dim_y; i++)
+    for(unsigned int j=0; j<i; j++)
+      if(A[i][j] != A[j][i]) {
+        std::cerr << "------------------------------------------------------------------\n"
+                  << "ERROR: Adjecency matrix of non-directed graph should be symmetric!\n"
+                  << "------------------------------------------------------------------\n";
+        exit(2);
+      }
+  //Check that diagonal is zero
+  for(unsigned int i=0; i<dim_x; ++i)
+    if(A[i][i]) {
+      std::cerr << "------------------------------------------------------------------\n"
+                << "ERROR: Adjecency matrix of simple graph should have zero diagonal!\n"
+                << "------------------------------------------------------------------\n";
+      exit(3);
+    }
+
+  ///// CREATING NDOES /////
+  N_nodes = dim_x;
+  NODES_ARRAY_SIZE = N_nodes;
+  
+  nodes = new node[NODES_ARRAY_SIZE];
+  for(unsigned int i=0; i<N_nodes; ++i)
+    nodes[i].name = std::to_string(i) + "_node";
+    
+  ///// CREATING LINKS /////
+  for(unsigned int i=0; i<N_nodes; ++i)
+    for(unsigned int j=0; j<i; ++j)
+      if(A[i][j])
+        add_link_no_checks(i, j);
 }
 
 //////////////////////// !this function can be reimplemented for optimization of search! //////////////////
@@ -96,9 +161,9 @@ node* graph::find_node(const std::string &node_name) const {
 node* graph::find_node(const unsigned int &node_id) const {
   if(N_nodes > node_id) return nodes + node_id;
   
-  std::cerr << "-----------------------------------------------\n";
-  std::cerr << "WARNING: Attempt to acces nonexisting node!\n";
-  std::cerr << "-----------------------------------------------\n";
+  std::cerr << "-----------------------------------------------\n"
+            << "WARNING: Attempt to access nonexisting node!\n"
+            << "-----------------------------------------------\n";
   return NULL;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -108,9 +173,9 @@ const node& graph::get_node(const std::string &node_name) const {
 
   if(p_node) return *p_node;
   
-  std::cerr << "----------------------------------------------------\n";
-  std::cerr << "FATAL ERROR: Attempt to acces nonexisting node!\n";
-  std::cerr << "----------------------------------------------------\n";
+  std::cerr << "----------------------------------------------------\n"
+            << "FATAL ERROR: Attempt to access nonexisting node!\n"
+            << "----------------------------------------------------\n";
   exit(1);
 }
 
@@ -118,9 +183,9 @@ const node& graph::get_node(const unsigned int &node_id) const {
   if(N_nodes > node_id)
     return nodes[node_id];
   else {
-    std::cerr << "----------------------------------------------------\n";
-    std::cerr << "FATAL ERROR: Attempt to acces nonexisting node!\n";
-    std::cerr << "----------------------------------------------------\n";
+    std::cerr << "----------------------------------------------------\n"
+              << "FATAL ERROR: Attempt to access nonexisting node!\n"
+              << "----------------------------------------------------\n";
     exit(1);
   } 
 }
@@ -156,23 +221,23 @@ void graph::save_labels(const std::string &file_name) const {
     for(unsigned int i=0; i<N_labels; ++i)
       ofs << labels[i].name << '\n';
   else {
-    std::cerr << "-----------------------------------------------\n";
-    std::cerr << "ERROR: Cannot open the file to save the labels!\n";
-    std::cerr << "-----------------------------------------------\n";
+    std::cerr << "-----------------------------------------------\n"
+              << "ERROR: Cannot open the file to save the labels!\n"
+              << "-----------------------------------------------\n";
   }
 }
 
 void graph::save(const std::string &file_name) const {
   if(!N_nodes) {
-    std::cerr << "-----------------------------------------------------\n";
-    std::cerr << "WARNING: Attempt to save empty graph is ignored!\n";
-    std::cerr << "-----------------------------------------------------\n";
+    std::cerr << "-----------------------------------------------------\n"
+              << "WARNING: Attempt to save empty graph is ignored!\n"
+              << "-----------------------------------------------------\n";
     return;
   }
   
   std::ofstream ofs( (file_name + ".graph").c_str() );
   if(ofs.is_open()) {
-    std::cout << "***Saving the graph in \".graph\" format...\n";
+    std::cerr << "***Saving the graph in \".graph\" format...\n";
     ofs << N_nodes << ' ' << N_links << ' ' << N_labels << '\n';
 
   
@@ -184,27 +249,27 @@ void graph::save(const std::string &file_name) const {
         ofs << nodes[i].id << ' ' << nodes[i].name << ' ' << nodes[i].label.id << ' ' << nodes[i].label.name << '\n';
 
     ofs.close();
-    std::cout << "*Graph is saved to \"" << file_name + ".graph" << "\".\n";
+    std::cerr << "*Graph is saved to \"" << file_name + ".graph" << "\".\n";
   }
   else {
-    std::cerr << "-------------------------------------------------------------------\n";
-    std::cerr << "ERROR: Cannot open the file to save the graph in \".graph\" format!\n";
-    std::cerr << "-------------------------------------------------------------------\n";
+    std::cerr << "-------------------------------------------------------------------\n"
+              << "ERROR: Cannot open the file to save the graph in \".graph\" format!\n"
+              << "-------------------------------------------------------------------\n";
   }
 }
 
 void graph::save_to_sif_and_attrs(const std::string &file_name) const {
     if(!N_nodes) {
-    std::cerr << "-----------------------------------------------------\n";
-    std::cerr << "WARNING: Attempt to save empty graph is ignored!\n";
-    std::cerr << "-----------------------------------------------------\n";
+    std::cerr << "-----------------------------------------------------\n"
+              << "WARNING: Attempt to save empty graph is ignored!\n"
+              << "-----------------------------------------------------\n";
     return;
   }
     
   std::ofstream ofs_sif((file_name + ".sif").c_str());
   std::ofstream ofs_attrs((file_name + ".attrs").c_str());
   if(ofs_sif.is_open() && ofs_attrs.is_open()) {
-    std::cout << "***Saving the graph in \".sif - .attrs\" format...\n";
+    std::cerr << "***Saving the graph in \".sif - .attrs\" format...\n";
     
     for(std::list<link>::const_iterator it_links = links.begin(); it_links!=links.end(); ++it_links)
       ofs_sif << it_links->node1->name << ' ' << it_links ->type << ' ' << it_links->node2->name << '\n';
@@ -219,31 +284,31 @@ void graph::save_to_sif_and_attrs(const std::string &file_name) const {
     ofs_sif.close();
     ofs_attrs.close();
 
-    std::cout << "*Graph is saved to \"" << file_name + ".sif" << "\" and \"" << file_name + ".attrs" <<"\" files.\n";
+    std::cerr << "*Graph is saved to \"" << file_name + ".sif" << "\" and \"" << file_name + ".attrs" <<"\" files.\n";
   }
   else {
-    std::cerr << "---------------------------------------------------------------------------\n";
-    std::cerr << "ERROR: Cannot open the files to save the graph in \".sif - .attrs\" format!\n";
-    std::cerr << "---------------------------------------------------------------------------\n";
+    std::cerr << "---------------------------------------------------------------------------\n"
+              << "ERROR: Cannot open the files to save the graph in \".sif - .attrs\" format!\n"
+              << "---------------------------------------------------------------------------\n";
   }
 }
 /////////////////////////////////////////////////////////////////////////
 graph& graph::load(const std::string &graph_file, unsigned int N_additional_nodes) {
-  std::cout << "***Loading the graph from \".graph\" file...\n";
+  std::cerr << "***Loading the graph from \".graph\" file...\n";
   std::ifstream ifs(graph_file.c_str());
   
   if( !ifs.is_open() ) {
-    std::cerr << "------------------------------------------------------------------------\n";
-    std::cerr << "ERROR: Cannot open the file \"" << graph_file << "\" to load the graph!\n";
-    std::cerr << "------------------------------------------------------------------------\n";
-    std::cout << "*Graph is NOT loaded!!!\n";
+    std::cerr << "------------------------------------------------------------------------\n"
+              << "ERROR: Cannot open the file \"" << graph_file << "\" to load the graph!\n"
+              << "------------------------------------------------------------------------\n"
+              << "*Graph is NOT loaded!!!\n";
     return *this;
   }
   
   if(N_nodes) {
-    std::cerr << "--------------------------------------------------------------\n";
-    std::cerr << "WARNING: Graph is not empty, implicitly CLEARING the graph!\n";
-    std::cerr << "--------------------------------------------------------------\n";
+    std::cerr << "--------------------------------------------------------------\n"
+              << "WARNING: Graph is not empty, implicitly CLEARING the graph!\n"
+              << "--------------------------------------------------------------\n";
     clear();
   }
 
@@ -291,8 +356,56 @@ graph& graph::load(const std::string &graph_file, unsigned int N_additional_node
   
   ifs.close();
 
-  std::cout << "*Graph of "<< N_nodes <<" nodes and "<< N_links <<" links is loaded from \"" << graph_file << "\" file.\n";
+  std::cerr << "*Graph of "<< N_nodes <<" nodes and "<< N_links <<" links is loaded from \"" << graph_file << "\" file.\n";
   
+  return *this;
+}
+
+graph& graph::build_from_adjacency_matrix(const matrix<bool>& A) {
+  ///// CONSISTENCY CHECKS FOR ADJACENCY MATRIX /////
+  //Check that matrix is square
+  unsigned int dim_x = A.get_dim_x();
+  unsigned int dim_y = A.get_dim_y();
+  if(dim_x != dim_y) {
+    std::cerr << "-----------------------------------------\n"
+              << "ERROR: Adjecency matrix should be square!\n"
+              << "-----------------------------------------\n";
+    exit(1);
+  }
+  //Check that matrix is symmetric
+  double sum = 0;
+  for(unsigned int i=0; i<dim_y; i++)
+    for(unsigned int j=0; j<i; j++)
+      if(A[i][j] != A[j][i]) {
+        std::cerr << "------------------------------------------------------------------\n"
+                  << "ERROR: Adjecency matrix of non-directed graph should be symmetric!\n"
+                  << "------------------------------------------------------------------\n";
+        exit(2);
+      }
+  //Check that diagonal is zero
+  for(unsigned int i=0; i<dim_x; ++i)
+    if(A[i][i]) {
+      std::cerr << "------------------------------------------------------------------\n"
+                << "ERROR: Adjecency matrix of simple graph should have zero diagonal!\n"
+                << "------------------------------------------------------------------\n";
+      exit(3);
+    }
+
+  clear();
+  ///// CREATING NDOES /////
+  N_nodes = dim_x;
+  NODES_ARRAY_SIZE = N_nodes;
+  
+  nodes = new node[NODES_ARRAY_SIZE];
+  for(unsigned int i=0; i<N_nodes; ++i)
+    nodes[i].name = std::to_string(i) + "_node";
+
+  ///// CREATING LINKS /////
+  for(unsigned int i=0; i<N_nodes; ++i)
+    for(unsigned int j=0; j<i; ++j)
+      if(A[i][j])
+        add_link_no_checks(i, j);
+
   return *this;
 }
 /////////////////////////////////////////////////////////////////////////
@@ -310,7 +423,7 @@ bool graph::remove_link(std::list<link>::iterator &it_link) {
   else
     return false;
 
-  //Seekink for the poiner to the link in second node
+  //Seeking for the poiner to the link in second node
   iterator_found = false;
   for(it_it_links = it_link->node2->attached_links.begin(); it_it_links != it_link->node2->attached_links.end(); ++it_it_links)
     if(*it_it_links == it_link) {
@@ -353,9 +466,9 @@ void graph::remove_link(node* p_node1, node* p_node2, const std::string &type, d
     N_links--;
   }
   else {
-    std::cerr << "--------------------------------------------------------\n";
-    std::cerr << "WARNING: Attempt to remove non-existing link is ignored!\n";
-    std::cerr << "--------------------------------------------------------\n";
+    std::cerr << "--------------------------------------------------------\n"
+              << "WARNING: Attempt to remove non-existing link is ignored!\n"
+              << "--------------------------------------------------------\n";
     return;
   }
 }
@@ -365,16 +478,16 @@ void graph::remove_link(const std::string &node1_name, const std::string &node2_
   node *p_node2 = find_node(node2_name);
   
   if(!p_node1) {
-    std::cerr << "--------------------------------------------------------------------------------\n";
-    std::cerr << "ERROR: Attempt to remove a link of non-existing node \"" << node1_name << "\"!\n";
-    std::cerr << "--------------------------------------------------------------------------------\n";
+    std::cerr << "--------------------------------------------------------------------------------\n"
+              << "ERROR: Attempt to remove a link of non-existing node \"" << node1_name << "\"!\n"
+              << "--------------------------------------------------------------------------------\n";
     exit(1);
   }
 
   if(!p_node2) {
-    std::cerr << "--------------------------------------------------------------------------------\n";
-    std::cerr << "ERROR: Attempt to remove a link of non-existing node \"" << node2_name << "\"!\n";
-    std::cerr << "--------------------------------------------------------------------------------\n";
+    std::cerr << "--------------------------------------------------------------------------------\n"
+              << "ERROR: Attempt to remove a link of non-existing node \"" << node2_name << "\"!\n"
+              << "--------------------------------------------------------------------------------\n";
     exit(1);
   }
 
@@ -385,9 +498,9 @@ void graph::remove_link(const std::string &node1_name, const std::string &node2_
 
 void graph::add_link_no_checks(const unsigned int &node1_id, const unsigned int &node2_id, std::string type, double weight) {
   if(!N_nodes) {
-    std::cerr << "------------------------------------------------\n";
-    std::cerr << "ERROR: Attempt to add a link to empty graph!\n";
-    std::cerr << "------------------------------------------------\n";
+    std::cerr << "------------------------------------------------\n"
+              << "ERROR: Attempt to add a link to empty graph!\n"
+              << "------------------------------------------------\n";
     exit(1);
   }
   
@@ -399,10 +512,16 @@ void graph::add_link_no_checks(const unsigned int &node1_id, const unsigned int 
 }
 /////////////////////////////////////////////////////////////////////////
 graph& graph::add_link(const unsigned int &i, const unsigned int &j, std::string type, double weight) {
+  if(!N_nodes) {
+    std::cerr << "------------------------------------------------\n"
+              << "ERROR: Attempt to add a link to empty graph!\n"
+              << "------------------------------------------------\n";
+    exit(1);
+  }
   if(i == j) {
-    std::cerr << "--------------------------------------------------\n";
-    std::cerr << "WARNING: Attempt to create a self-link is ignored!\n";
-    std::cerr << "--------------------------------------------------\n";
+    std::cerr << "--------------------------------------------------\n"
+              << "WARNING: Attempt to create a self-link is ignored!\n"
+              << "--------------------------------------------------\n";
     return *this;
   }
 
@@ -421,9 +540,9 @@ graph& graph::add_link(const unsigned int &i, const unsigned int &j, std::string
     ++N_links;
   }
   else {
-    std::cerr << "--------------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Attempt to add existing link \""<< l <<"\" is ignored!\n";
-    std::cerr << "--------------------------------------------------------------------------\n";
+    std::cerr << "--------------------------------------------------------------------------\n"
+              << "WARNING: Attempt to add existing link \""<< l <<"\" is ignored!\n"
+              << "--------------------------------------------------------------------------\n";
     return *this;
   }    
   return *this;
@@ -432,9 +551,9 @@ graph& graph::add_link(const unsigned int &i, const unsigned int &j, std::string
 void graph::add_link(node* node1, node* node2, const std::string &type, double weight) {
   
   if(node1 == node2) {
-    std::cerr << "--------------------------------------------------\n";
-    std::cerr << "WARNING: Attempt to create a self-link is ignored!\n";
-    std::cerr << "--------------------------------------------------\n";
+    std::cerr << "--------------------------------------------------\n"
+              << "WARNING: Attempt to create a self-link is ignored!\n"
+              << "--------------------------------------------------\n";
     return;
   }
   
@@ -453,9 +572,9 @@ void graph::add_link(node* node1, node* node2, const std::string &type, double w
     ++N_links;
   }
   else {
-    std::cerr << "--------------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Attempt to add existing link \""<< l <<"\" is ignored!\n";
-    std::cerr << "--------------------------------------------------------------------------\n";
+    std::cerr << "--------------------------------------------------------------------------\n"
+              << "WARNING: Attempt to add existing link \""<< l <<"\" is ignored!\n"
+              << "--------------------------------------------------------------------------\n";
     return;
   }    
 }
@@ -467,16 +586,16 @@ void graph::add_link(const std::string &node1_name, const std::string &node2_nam
   node *p_node2 = find_node(node2_name);
   
   if(!p_node1) {
-    std::cerr << "--------------------------------------------------------------------------------\n";
-    std::cerr << "ERROR: Attempt to attach a link to non-existing node \"" << node1_name << "\"!\n";
-    std::cerr << "--------------------------------------------------------------------------------\n";
+    std::cerr << "--------------------------------------------------------------------------------\n"
+              << "ERROR: Attempt to attach a link to non-existing node \"" << node1_name << "\"!\n"
+              << "--------------------------------------------------------------------------------\n";
     exit(1);
   }
   
   if(!p_node2) {
-    std::cerr << "--------------------------------------------------------------------------------\n";
-    std::cerr << "ERROR: Attempt to attach a link to non-existing node \"" << node2_name << "\"!\n";
-    std::cerr << "--------------------------------------------------------------------------------\n";
+    std::cerr << "--------------------------------------------------------------------------------\n"
+              << "ERROR: Attempt to attach a link to non-existing node \"" << node2_name << "\"!\n"
+              << "--------------------------------------------------------------------------------\n";
     exit(1);
   }
   
@@ -510,9 +629,9 @@ graph& graph::add_node_no_checks(const std::string &name, const std::string &lab
     }
   }
   else {
-    std::cerr << "-----------------------------------------------------------\n";
-    std::cerr << "WARNING: Implicitly reallocating memory for 100 more nodes!\n";
-    std::cerr << "-----------------------------------------------------------\n";
+    std::cerr << "-----------------------------------------------------------\n"
+              << "WARNING: Implicitly reallocating memory for 100 more nodes!\n"
+              << "-----------------------------------------------------------\n";
 
     append_nodes_array(100);
     
@@ -543,9 +662,9 @@ graph& graph::add_node_no_checks(const std::string &name, const std::string &lab
 graph& graph::add_node(const std::string &name, const std::string &label_name) {
   for(unsigned int i = 0; i<N_nodes; i++)
     if(nodes[i].name == name) {
-      std::cerr << "---------------------------------------------------------------------\n";
-      std::cerr << "WARNING: Attempt to add existing node: \"" << name << "\" is ignored!\n";
-      std::cerr << "---------------------------------------------------------------------\n";
+      std::cerr << "---------------------------------------------------------------------\n"
+                << "WARNING: Attempt to add existing node: \"" << name << "\" is ignored!\n"
+                << "---------------------------------------------------------------------\n";
       return *this;
     }
   add_node_no_checks(name, label_name);
@@ -571,9 +690,9 @@ graph& graph::remove_node_no_checks(node *p_node) {
     nodes[N_nodes].attached_links.clear();  
   }
   else {
-    std::cerr << "---------------------------------------------\n";
-    std::cerr << "WARNING: Attempt to remove non-existing node!\n";
-    std::cerr << "---------------------------------------------\n";
+    std::cerr << "---------------------------------------------\n"
+              << "WARNING: Attempt to remove non-existing node!\n"
+              << "---------------------------------------------\n";
   }
   
   return *this;
@@ -621,9 +740,9 @@ graph& graph::remove_node(const std::string &name) {
     }
   }
   else {
-    std::cerr << "---------------------------------------------\n";
-    std::cerr << "WARNING: Attempt to remove non-existing node!\n";
-    std::cerr << "---------------------------------------------\n";
+    std::cerr << "---------------------------------------------\n"
+              << "WARNING: Attempt to remove non-existing node!\n"
+              << "---------------------------------------------\n";
   }
 
   return *this; 
@@ -677,9 +796,9 @@ graph& graph::remove_nodes_with_degree(const unsigned int &k) {//!!!NEEDS OPTIMI
     }
   }
   else {
-    std::cerr << "---------------------------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Attempt to remove all nodes with non-existing degree " << k <<" is ignored!\n";
-    std::cerr << "---------------------------------------------------------------------------------------\n";
+    std::cerr << "---------------------------------------------------------------------------------------\n"
+              << "WARNING: Attempt to remove all nodes with non-existing degree " << k <<" is ignored!\n"
+              << "---------------------------------------------------------------------------------------\n";
   }
       
   return *this;
@@ -719,9 +838,9 @@ graph& graph::remove_nodes_with_label(const std::string &lbl) {//!!!NEEDS OPTIMI
     --N_labels;
   }
   else {
-    std::cerr << "----------------------------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Attempt to remove all nodes with non-existing label " << lbl <<" is ignored!\n";
-    std::cerr << "----------------------------------------------------------------------------------------\n";
+    std::cerr << "----------------------------------------------------------------------------------------\n"
+              << "WARNING: Attempt to remove all nodes with non-existing label " << lbl <<" is ignored!\n"
+              << "----------------------------------------------------------------------------------------\n";
   }
   
   return *this;
@@ -784,9 +903,9 @@ unsigned int graph::max_degree() const {
     return deg_max;
   }
   else {
-    std::cerr << "----------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Call of \"max_degree()\" function for empty graph is ignored!\n";
-    std::cerr << "----------------------------------------------------------------------\n";
+    std::cerr << "----------------------------------------------------------------------\n"
+              << "WARNING: Call of \"max_degree()\" function for empty graph is ignored!\n"
+              << "----------------------------------------------------------------------\n";
     return 0;
   }
 }
@@ -800,18 +919,18 @@ unsigned int graph::min_degree() const {
     return deg_min;
   }
   else {
-    std::cerr << "----------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Call of \"max_degree()\" function for empty graph is ignored!\n";
-    std::cerr << "----------------------------------------------------------------------\n";
+    std::cerr << "----------------------------------------------------------------------\n"
+              << "WARNING: Call of \"max_degree()\" function for empty graph is ignored!\n"
+              << "----------------------------------------------------------------------\n";
     return 0;
   }
 }
 
 unsigned int* graph::degree_sequence() const {
 #ifndef QUIET_MODE
-  std::cerr << "--------------------------------------------------------------------------------------\n";
-  std::cerr << "WARNING: Implicit memory allocation for degree_sequence! Don't forget to delete[] it!\n";
-  std::cerr << "--------------------------------------------------------------------------------------\n";
+  std::cerr << "--------------------------------------------------------------------------------------\n"
+            << "WARNING: Implicit memory allocation for degree_sequence! Don't forget to delete[] it!\n"
+            << "--------------------------------------------------------------------------------------\n";
 #endif
   
   unsigned int* degrees = new unsigned int[N_nodes];
@@ -846,9 +965,9 @@ col_vector<node*> graph::nodes_with_max_degree_col_vec() const {
     return V_nodes;
   }
   else {
-    std::cerr << "-----------------------------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Call of \"node_with_max_degree_col_vec()\" function from empty graph is ignored!\n";
-    std::cerr << "-----------------------------------------------------------------------------------------\n";
+    std::cerr << "-----------------------------------------------------------------------------------------\n"
+              << "WARNING: Call of \"node_with_max_degree_col_vec()\" function from empty graph is ignored!\n"
+              << "-----------------------------------------------------------------------------------------\n";
     return col_vector<node*>();
   }
 }
@@ -871,9 +990,9 @@ col_vector<node*> graph::nodes_with_min_degree_col_vec() const {
     return V_nodes;
   }
   else {
-    std::cerr << "-----------------------------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Call of \"node_with_min_degree_col_vec()\" function from empty graph is ignored!\n";
-    std::cerr << "-----------------------------------------------------------------------------------------\n";
+    std::cerr << "-----------------------------------------------------------------------------------------\n"
+              << "WARNING: Call of \"node_with_min_degree_col_vec()\" function from empty graph is ignored!\n"
+              << "-----------------------------------------------------------------------------------------\n";
     return col_vector<node*>();
   }
 }
@@ -896,18 +1015,18 @@ col_vector<node*> graph::nodes_with_degree_col_vec(unsigned int &k) const {
     return V_nodes;
   }
   else {
-    std::cerr << "-------------------------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Call of \"node_with_degree_col_vec()\" function from empty graph is ignored!\n";
-    std::cerr << "-------------------------------------------------------------------------------------\n";
+    std::cerr << "-------------------------------------------------------------------------------------\n"
+              << "WARNING: Call of \"node_with_degree_col_vec()\" function from empty graph is ignored!\n"
+              << "-------------------------------------------------------------------------------------\n";
     return col_vector<node*>();
   }
 }
 
 std::string* graph::label_sequence() const {
 #ifndef QUIET_MODE
-  std::cerr << "-------------------------------------------------------------------------------------\n";
-  std::cerr << "WARNING: Implicit memory allocation for label_sequence! Don't forget to delete[] it!\n";
-  std::cerr << "-------------------------------------------------------------------------------------\n";
+  std::cerr << "-------------------------------------------------------------------------------------\n"
+            << "WARNING: Implicit memory allocation for label_sequence! Don't forget to delete[] it!\n"
+            << "-------------------------------------------------------------------------------------\n";
 #endif
   
   std::string* label_sequence = new std::string[N_nodes];
@@ -927,9 +1046,9 @@ double graph::average_degree() const {
   if(N_nodes)
     return 2*N_links/(double)N_nodes;
   else {
-    std::cerr << "--------------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Call of \"average_degree()\" function for empty graph is ignored!\n";
-    std::cerr << "--------------------------------------------------------------------------\n";
+    std::cerr << "--------------------------------------------------------------------------\n"
+              << "WARNING: Call of \"average_degree()\" function for empty graph is ignored!\n"
+              << "--------------------------------------------------------------------------\n";
     return 0;
   }
 }
@@ -943,9 +1062,9 @@ double graph::degree_distribution(const unsigned int &k) const {
     return count/(double)N_nodes;
   }
   else {
-    std::cerr << "----------------------------------------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Call of \"degree_distribution(const unsigned int &k)\" function for empty graph is ignored!\n";
-    std::cerr << "----------------------------------------------------------------------------------------------------\n";
+    std::cerr << "----------------------------------------------------------------------------------------------------\n"
+              << "WARNING: Call of \"degree_distribution(const unsigned int &k)\" function for empty graph is ignored!\n"
+              << "----------------------------------------------------------------------------------------------------\n";
     return 0;
   }
 }
@@ -963,9 +1082,9 @@ double* graph::degree_distribution() const {
     return deg_distr;
   }
   else {
-    std::cerr << "----------------------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Call of \"degree_distribution()\" function for empty graph is ignored!\n";
-    std::cerr << "----------------------------------------------------------------------------------\n";
+    std::cerr << "----------------------------------------------------------------------------------\n"
+              << "WARNING: Call of \"degree_distribution()\" function for empty graph is ignored!\n"
+              << "----------------------------------------------------------------------------------\n";
     return NULL;
   }
 }
@@ -983,9 +1102,9 @@ col_vector<double> graph::degree_distribution_col_vector() const {
     return V;
   }
   else {
-    std::cerr << "----------------------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Call of \"degree_distribution()\" function for empty graph is ignored!\n";
-    std::cerr << "----------------------------------------------------------------------------------\n";
+    std::cerr << "----------------------------------------------------------------------------------\n"
+              << "WARNING: Call of \"degree_distribution()\" function for empty graph is ignored!\n"
+              << "----------------------------------------------------------------------------------\n";
     return col_vector<double>();
   }
 }
@@ -1055,14 +1174,16 @@ double graph::joint_distribution_of_connected_node_labels(const unsigned int &la
 
 W_matrix graph::joint_distribution_of_connected_node_labels() const {
   if(!N_nodes) {
-    std::cerr << "------------------------------------------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Call of \"joint_distribution_of_connected_node_labels\" function for empty graph is ignored!\n";
-    std::cerr << "------------------------------------------------------------------------------------------------------\n";
+#ifndef SILENT_MODE
+    std::cerr << "------------------------------------------------------------------------------------------------------\n"
+              << "WARNING: Call of \"joint_distribution_of_connected_node_labels\" function for empty graph is ignored!\n"
+              << "------------------------------------------------------------------------------------------------------\n";
+#endif
     return W_matrix();
   }
-
-  std::cout << "***Computing full matrix of joint distribution of connected nodes labels...\n";
-  
+#ifndef QUIET_MODE
+  std::cerr << "***Computing full matrix of joint distribution of connected nodes labels...\n";
+#endif
   W_matrix W(N_labels);
   for(unsigned int i=0; i<N_labels; ++i)
     for(unsigned int j=0; j<i; ++j)
@@ -1070,8 +1191,9 @@ W_matrix graph::joint_distribution_of_connected_node_labels() const {
 
   for(unsigned int i=0; i<N_labels; ++i)
     W[i][i] = joint_distribution_of_connected_node_labels(i, i);
-
-  std::cout << "*Joint distribution of connecred node labels is computed.\n";
+#ifndef QUIET_MODE
+  std::cerr << "*Joint distribution of connecred node labels is computed.\n";
+#endif
   return W;
 }
 
@@ -1103,13 +1225,13 @@ double graph::joint_distribution_of_connected_node_degrees(const unsigned int &k
 
 W_matrix graph::joint_distribution_of_connected_node_degrees() const {
   if(!N_nodes) {
-    std::cerr << "------------------------------------------------------------------------------------------------------\n";
-    std::cerr << "WARNING: Call of \"joint_distribution_of_connected_node_degrees\" function for empty graph is ignored!\n";
-    std::cerr << "------------------------------------------------------------------------------------------------------\n";
+    std::cerr << "------------------------------------------------------------------------------------------------------\n"
+              << "WARNING: Call of \"joint_distribution_of_connected_node_degrees\" function for empty graph is ignored!\n"
+              << "------------------------------------------------------------------------------------------------------\n";
     return W_matrix();
   }
 
-  std::cout << "***Computing full matrix of joint distribution of connected nodes degrees...\n";
+  std::cerr << "***Computing full matrix of joint distribution of connected nodes degrees...\n";
   
   unsigned int k_max = max_degree();
   unsigned int k_min = min_degree();
@@ -1121,18 +1243,18 @@ W_matrix graph::joint_distribution_of_connected_node_degrees() const {
       W[i][j] = W[j][i] = 0;
   
   //Filling non-zero elements
-  for(unsigned int i=k_min; i<=k_max; ++i) {
-    //    fprintf(stderr, "%d\%%  ", (int)((i-k_min)*(i-k_min+1)/(double)((k_max-k_min)*(k_max-k_min+1))*100));
+  for(unsigned int i=k_min; i<=k_max; ++i)
     for(unsigned int j=k_min; j<=i; ++j)
       W[i][j] = W[j][i] = joint_distribution_of_connected_node_degrees(i, j);
-  }
 
-  std::cout << "\n*Joint distribution of connecred node degrees is computed.\n";
+  std::cerr << "\n*Joint distribution of connecred node degrees is computed.\n";
   return W;
 }
 
 double graph::modularity() const {
-  std::cout << "***Computing modularity of the graph...\n";
+#ifndef QUIET_MODE
+  std::cerr << "***Computing modularity of the graph...\n";
+#endif
   unsigned int *K = degree_sequence();
   
   double count1 = 0;
@@ -1147,9 +1269,9 @@ double graph::modularity() const {
         count2 += K[i]*K[j];
 
   delete[] K;
-  
-  std::cout << "*Modularity is calculated.\n";
-  
+#ifndef QUIET_MODE
+  std::cerr << "*Modularity is calculated.\n";
+#endif
   return (count1 - count2/N_links) / (N_links*4);
 }
 
@@ -1165,9 +1287,9 @@ double graph::assortativity() const {
 
 short* graph::spin_sequence() const{
 #ifndef QUIET_MODE
-  std::cerr << "-------------------------------------------------------------------------------------\n";
-  std::cerr << "WARNING: Implicit memory allocation for label_sequence! Don't forget to delete[] it!\n";
-  std::cerr << "-------------------------------------------------------------------------------------\n";
+  std::cerr << "-------------------------------------------------------------------------------------\n"
+            << "WARNING: Implicit memory allocation for label_sequence! Don't forget to delete[] it!\n"
+            << "-------------------------------------------------------------------------------------\n";
 #endif
 
   short* spin_sequence = new short[N_nodes];
@@ -1198,34 +1320,41 @@ matrix<double> graph::interaction_matrix() const {
 
 const graph& graph::randomize_spins(const int &seed) {
   srand(seed);
+  if(N_labels!=2 || labels[0].name!="-1" || labels[0].id!=0 || labels[1].name!="1" || labels[1].id!=1) {
+    if(labels != NULL)
+      delete[] labels;
+    N_labels=2;
+    labels = new label[N_labels];
+    labels[0].id = 0;
+    labels[0].name = "-1";
+    labels[1].id = 1;
+    labels[1].name = "1";
+  }
   for(unsigned int i =0; i<N_nodes; i++) {
-    std::string spin = std::to_string(2*(rand()%2)-1);
-    if(spin != nodes[i].label.name) {
-      nodes[i].label.name = spin;
-      nodes[i].label.id = !nodes[i].label.id;
-    }
+    if(nodes[i].name != "FIELD_NODE")
+      nodes[i].label.name = std::to_string(2*(short)(nodes[i].label.id = rand()%2)-1);
   }
   return *this;
 }
 
-const graph& graph::simulate_Glauber_Dynamics(const int &seed, const double &T, const unsigned int &N_steps) {
+const graph& graph::simulate_Glauber_Dynamics_no_fields(const int &seed, const double &T, const unsigned int &N_steps) {
 #ifndef QUIET_MODE
-  std::cout << "*** Simulating Glauber Dynamics...\n";
+  std::cerr << "*** Simulating Glauber Dynamics...\n";
 #endif
   //////////////// CONSISTENCY CHECK //////////////
   if(N_labels > 2) {
-    std::cerr << "---------------------------------------------------------------------------------------\n";
-    std::cerr << "ERROR: GRAPH IS INSUFFICIENT FOR GLAUBER DYNAMICS (has more than 2 different labels)!\n";
-    std::cerr << "---------------------------------------------------------------------------------------\n";
+    std::cerr << "---------------------------------------------------------------------------------------\n"
+              << "ERROR: GRAPH IS INSUFFICIENT FOR GLAUBER DYNAMICS (has more than 2 different labels)!\n"
+              << "---------------------------------------------------------------------------------------\n";
     return *this;
   };
   
   for(unsigned int i=0; i<N_nodes; ++i)
     if(nodes[i].label.name != "1" && nodes[i].label.name != "-1") {
-      std::cerr << "-------------------------------------------------------------------------------------------------------\n";
-      std::cerr << "ERROR: GRAPH IS INSUFFICIENT FOR GLAUBER DYNAMICS (has labels that are different from \"1\" and \"-1\")!\n";
-      std::cerr << "DEFECTED LABEL OF NODE " << nodes[i].name << " (id="<< i <<") is " << nodes[i].label.name << '\n';
-      std::cerr << "-------------------------------------------------------------------------------------------------------\n";
+      std::cerr << "-------------------------------------------------------------------------------------------------------\n"
+                << "ERROR: GRAPH IS INSUFFICIENT FOR GLAUBER DYNAMICS (has labels that are different from \"1\" and \"-1\")!\n"
+                << "DEFECTED LABEL OF NODE " << nodes[i].name << " (id="<< i <<") is " << nodes[i].label.name << '\n'
+                << "-------------------------------------------------------------------------------------------------------\n";
       return *this;
   };
 
@@ -1243,23 +1372,73 @@ const graph& graph::simulate_Glauber_Dynamics(const int &seed, const double &T, 
       else
         sum += (*it_it_links)->weight * std::stoi((*it_it_links)->node1->label.name);
 
-    if( /*(1+tanh(sum/T))/2*/ 1/(1+exp(-2*sum/T))  > (rand()/RAND_MAX_DOUBLE) )
+    if( /*(1+tanh(sum/T))/2*/ 1/(1+exp(-2*sum/T)) > (rand()/RAND_MAX_DOUBLE) )
       nodes[i].set_spin_to_plus1();
     else
       nodes[i].set_spin_to_minus1();
   }
 #ifndef QUIET_MODE
-  std::cout <<"* " << N_steps <<" steps of Glauber Dynamics were performed.\n";
+  std::cerr <<"* " << N_steps <<" steps of Glauber Dynamics were performed.\n";
 #endif
+  return *this;
+}
+
+const graph& graph::simulate_Glauber_Dynamics_with_fields(const int &seed, const double &T, const unsigned int &N_steps) {
+#ifndef QUIET_MODE
+  std::cerr << "*** Simulating Glauber Dynamics...\n";
+#endif
+  //////////////// CONSISTENCY CHECK //////////////
+  if(N_labels > 2) {
+    std::cerr << "---------------------------------------------------------------------------------------\n"
+              << "ERROR: GRAPH IS INSUFFICIENT FOR GLAUBER DYNAMICS (has more than 2 different labels)!\n"
+              << "---------------------------------------------------------------------------------------\n";
+    return *this;
+  };
+  
+  for(unsigned int i=0; i<N_nodes; ++i)
+    if(nodes[i].label.name != "1" && nodes[i].label.name != "-1") {
+      std::cerr << "-------------------------------------------------------------------------------------------------------\n"
+                << "ERROR: GRAPH IS INSUFFICIENT FOR GLAUBER DYNAMICS (has labels that are different from \"1\" and \"-1\")!\n"
+                << "DEFECTED LABEL OF NODE " << nodes[i].name << " (id="<< i <<") is " << nodes[i].label.name << '\n'
+                << "-------------------------------------------------------------------------------------------------------\n";
+      return *this;
+  };
+
+  ////////////// SIMULATING DYNAMICS ////////////////
+  srand(seed);
+  double RAND_MAX_DOUBLE = double(RAND_MAX);
+
+  for(unsigned int l=0; l<N_steps; ++l) {
+    unsigned int i = rand()%N_nodes; // Picking a node at random
+    if(nodes[i].name != "FIELD_NODE") {
+      double sum = 0;
+      for(std::list<std::list<link>::iterator>::iterator it_it_links = nodes[i].attached_links.begin(); it_it_links != find_node(i)->attached_links.end(); ++it_it_links)
+        if((*it_it_links)->node1 == nodes + i)
+          sum += (*it_it_links)->weight * std::stoi((*it_it_links)->node2->label.name);
+        else
+          sum += (*it_it_links)->weight * std::stoi((*it_it_links)->node1->label.name);
+
+      if( /*(1+tanh(sum/T))/2*/ 1/(1+exp(-2*sum/T)) > (rand()/RAND_MAX_DOUBLE) )
+        nodes[i].set_spin_to_plus1();
+      else
+        nodes[i].set_spin_to_minus1();
+    }
+    else
+      --l;
+  }
+#ifndef QUIET_MODE
+  std::cerr <<"* " << N_steps <<" steps of Glauber Dynamics were performed.\n";
+#endif
+  
   return *this;
 }
 
 double graph::average_magnetization() const {
   ////////////// CONSISTENCY CHECK //////////////
   if(N_labels > 2) {
-    std::cerr << "----------------------------------------------------------------------------------\n";
-    std::cerr << "ERROR: GRAPH IS INAPPROPRIATE SPIN MODEL (has more than 2 different labels)!\n";
-    std::cerr << "----------------------------------------------------------------------------------\n";
+    std::cerr << "----------------------------------------------------------------------------------\n"
+              << "ERROR: GRAPH IS INAPPROPRIATE SPIN MODEL (has more than 2 different labels)!\n"
+              << "----------------------------------------------------------------------------------\n";
 #ifdef INTERPRETER_MODE
     return -1;
 #else
@@ -1269,10 +1448,10 @@ double graph::average_magnetization() const {
   
   for(unsigned int i=0; i<N_nodes; ++i)
     if(nodes[i].label.name != "1" && nodes[i].label.name != "-1") {
-      std::cerr << "----------------------------------------------------------------------------------------------\n";
-      std::cerr << "ERROR: GRAPH IS INAPPROPRIATE SPIN MODEL (has labels that are different from \"1\" and \"-1\")!\n";
-      std::cerr << "DEFECTED LABEL OF NODE " << nodes[i].name << " (id="<< i <<") is " << nodes[i].label.name << '\n';
-      std::cerr << "----------------------------------------------------------------------------------------------\n";
+      std::cerr << "----------------------------------------------------------------------------------------------\n"
+                << "ERROR: GRAPH IS INAPPROPRIATE SPIN MODEL (has labels that are different from \"1\" and \"-1\")!\n"
+                << "DEFECTED LABEL OF NODE " << nodes[i].name << " (id="<< i <<") is " << nodes[i].label.name << '\n'
+                << "----------------------------------------------------------------------------------------------\n";
 #ifdef INTERPRETER_MODE
     return -1;
 #else
@@ -1280,14 +1459,21 @@ double graph::average_magnetization() const {
 #endif
   };
 
+  bool FIELD_NODE_DETECTED = false;
   double m_avrg = 0;
   for(unsigned int i=0; i<N_nodes; i++)
-    m_avrg += std::stoi(nodes[i].label.name);
-  return m_avrg / N_nodes;
+    if(nodes[i].name != "FIELD_NODE")
+      m_avrg += std::stoi(nodes[i].label.name);
+    else FIELD_NODE_DETECTED = true;
+
+  if(FIELD_NODE_DETECTED)
+    return m_avrg / (N_nodes-1);
+  else
+    return m_avrg / N_nodes;
 }
 
 graph& graph::set_spin_sequence(const col_vector<short> &V) {
-  std::cout << "V.get_dim_y = "<< V.get_dim_y() << '\n';
+  // std::cerr << "V.get_dim_y = "<< V.get_dim_y() << '\n';
   if(V.get_dim_y() == N_nodes) {
     for(unsigned int i=0; i<N_nodes; ++i)
         if(V[i] == 1)
@@ -1297,9 +1483,9 @@ graph& graph::set_spin_sequence(const col_vector<short> &V) {
     return *this;
   }
   else {
-    std::cerr << "------------------------------------------------------------------------------------------------\n";
-    std::cerr << "ERROR: Attempt to set 2-D spin sequence with inconsistent dimensions (dim_x * dim_y != N_nodes)!\n";
-    std::cerr << "------------------------------------------------------------------------------------------------\n";
+    std::cerr << "------------------------------------------------------------------------------------------------\n"
+              << "ERROR: Attempt to set 2-D spin sequence with inconsistent dimensions (dim_x * dim_y != N_nodes)!\n"
+              << "------------------------------------------------------------------------------------------------\n";
 #ifdef INTERPRETER_MODE
     return *this;
 #else
@@ -1318,9 +1504,9 @@ graph& graph::set_spin_sequence(const row_vector<short> &V) {
     return *this;
   }
   else {
-    std::cerr << "------------------------------------------------------------------------------------------------\n";
-    std::cerr << "ERROR: Attempt to set 2-D spin sequence with inconsistent dimensions (dim_x * dim_y != N_nodes)!\n";
-    std::cerr << "------------------------------------------------------------------------------------------------\n";
+    std::cerr << "------------------------------------------------------------------------------------------------\n"
+              << "ERROR: Attempt to set 2-D spin sequence with inconsistent dimensions (dim_x * dim_y != N_nodes)!\n"
+              << "------------------------------------------------------------------------------------------------\n";
 #ifdef INTERPRETER_MODE
     return *this;
 #else
@@ -1341,13 +1527,13 @@ graph& graph::set_spin_sequence_2D(const matrix<short> &M) {
     return *this;
   }
   else {
-    std::cout << "N_nodes = " << N_nodes << '\n';
-    std::cout << "M.get_dim_x()= " << M.get_dim_x() << '\n';
-    std::cout << "M.get_dim_y()= " << M.get_dim_y() << '\n';
+    std::cerr << "N_nodes = " << N_nodes << '\n'
+              << "M.get_dim_x()= " << M.get_dim_x() << '\n'
+              << "M.get_dim_y()= " << M.get_dim_y() << '\n';
     
-    std::cerr << "------------------------------------------------------------------------------------------------\n";
-    std::cerr << "ERROR: Attempt to set 2-D spin sequence with inconsistent dimensions (dim_x * dim_y != N_nodes)!\n";
-    std::cerr << "------------------------------------------------------------------------------------------------\n";
+    std::cerr << "------------------------------------------------------------------------------------------------\n"
+              << "ERROR: Attempt to set 2-D spin sequence with inconsistent dimensions (dim_x * dim_y != N_nodes)!\n"
+              << "------------------------------------------------------------------------------------------------\n";
 #ifdef INTERPRETER_MODE
     return *this;
 #else
@@ -1366,9 +1552,9 @@ matrix<short> graph::spin_sequence_2D(const unsigned int &dim_y, const unsigned 
     return M;
   }
   else {
-    std::cerr << "-----------------------------------------------------------------------------------------------------\n";
-    std::cerr << "ERROR: Attempt to arrange spins in 2-D array with inconsistent dimensions (dim_x * dim_y != N_nodes)!\n";
-    std::cerr << "-----------------------------------------------------------------------------------------------------\n";
+    std::cerr << "-----------------------------------------------------------------------------------------------------\n"
+              << "ERROR: Attempt to arrange spins in 2-D array with inconsistent dimensions (dim_x * dim_y != N_nodes)!\n"
+              << "-----------------------------------------------------------------------------------------------------\n";
 #ifdef INTERPRETER_MODE
     return matrix<short>();
 #else
@@ -1377,70 +1563,659 @@ matrix<short> graph::spin_sequence_2D(const unsigned int &dim_y, const unsigned 
   }
 }
 
-///////////////////// SPIN DYNAMICS END ///////////////////////////////////
+////////// MULTIPARTITES BEGIN ////////////
+const graph& graph::construct_multipartite_spin_model(const col_vector<unsigned int>& Np, const matrix<double>& J, const col_vector<double>& F) {
+  if(J.get_dim_x() != J.get_dim_y()) {
+    std::cerr << "----------------------------------------------------------------------------------\n"
+              << "ERROR: Multipartite cannot be created. Reason:\n"
+              << "       Interaction matrix is not square!\n"
+              << "----------------------------------------------------------------------------------\n";
+#ifdef INTERPRETER_MODE
+    return -1;
+#else
+    exit(1);
+#endif
+  }
 
-///////////////////// CLASSIFICATION BEGIN ////////////////////////////////
-double graph::loglikelihood() const {
-  double k_avrg = 2*N_links/(double)N_nodes;
+  for(unsigned int i=0; i<J.get_dim_x(); ++i)
+    for(unsigned int j=0; j<i; ++j)
+      if(J[i][j] != J[j][i]) {
+        std::cerr << "----------------------------------------------------------------------------------\n"
+                  << "ERROR: Multipartite cannot be created. Reason:\n"
+                  << "       Interaction matrix is not symmetric!\n"
+                  << "----------------------------------------------------------------------------------\n";
+#ifdef INTERPRETER_MODE
+        return -1;
+#else
+        exit(1);
+#endif
+      }
   
-  col_vector<double> P = label_distribution_vec();
-  W_matrix W = joint_distribution_of_connected_node_labels();
+  if(J.get_dim_x() != F.size()) {
+    std::cerr << "----------------------------------------------------------------------------------\n"
+              << "ERROR: Multipartite cannot be created. Reason:\n"
+              << "       Dimensions of Interaction matrix " <<  J.get_dim_x() << " are inconsistent with dim of Fields vector " << F.size() << '\n'
+              << "       They should be equal!\n"
+              << "----------------------------------------------------------------------------------\n";
+#ifdef INTERPRETER_MODE
+    return -1;
+#else
+    exit(1);
+#endif
+  }
 
-  matrix<double> L(N_labels, N_labels);
-  for(unsigned int i=0; i<N_labels; ++i)
-    for(unsigned int j=0; j<=i; ++j)
-      L[i][j] = L[j][i] = k_avrg/(double)N_nodes * W[i][j]/(P[i]*P[j]);
+  ////////////// ADDING NODES TO THE GRAPH /////////////
+  srand(time(NULL));
+  for(unsigned int i=0; i<Np.size(); ++i)
+    for(unsigned int j=0; j<Np[i]; ++j)
+      add_node("PART"+std::to_string(i)+'_'+std::to_string(j), std::to_string(1-2*(rand()%2)) );;
   
-  double loglikelihood = 0;
-  for(unsigned int i=0; i<N_labels; i++)
-    for(unsigned int j=0; j<i; j++)
-      if(L[i][j] != 0 && L[i][j] != 1)
-        loglikelihood += 2*N_links*W[i][j]*log(L[i][j]/(1-L[i][j])) + N_nodes*N_nodes*P[i]*P[j]*log(1-L[i][j]);
+  ///////////////// LINKING THE GRAPH //////////////////
+  col_vector<unsigned int> Bounds(Np.size()+1);
+  for(unsigned int i=0; i<Bounds.size(); ++i)
+    Bounds[i] = 0;
+  for(unsigned int i=1; i<Bounds.size(); ++i)
+    for(unsigned int j=0; j<i; ++j)
+      Bounds[i] += Np[j]; // Bounds == [0, N1, N1+N2, N1+N2+N3, N1+N2+N3+N4, ...]
 
-  for(unsigned int i=0; i<N_labels; i++)
-    if(L[i][i] != 0 && L[i][i] != 1)
-      loglikelihood += N_links*W[i][i]*log(L[i][i]/(1-L[i][i])) + 0.5*N_nodes*P[i]*log(1-L[i][i])*(N_nodes*P[i]-1);
+  //Linking diagonal
+  for(unsigned int l=1; l<Bounds.size(); ++l)
+    if(J[l-1][l-1]!=0)
+      for(unsigned int i=Bounds[l-1]; i<Bounds[l]; ++i)
+        for(unsigned int j=Bounds[l-1]; j<i; ++j)
+          add_link_no_checks(i, j, 'P'+std::to_string(l)+"_P"+std::to_string(l), J[l-1][l-1]);
+  // Linking off diagonal
+  for(unsigned int l=1; l<Bounds.size(); ++l)
+    for(unsigned int m=1; m<l; ++m)
+      if(J[l-1][m-1]!=0)
+        for(unsigned int i=Bounds[l-1]; i<Bounds[l]; ++i)
+          for(unsigned int j=Bounds[m-1]; j<Bounds[m]; ++j)
+            add_link_no_checks(i, j, 'P'+std::to_string(m)+"_P"+std::to_string(l), J[l-1][m-1]);
 
-  return loglikelihood;
+  /////// ADDING FIELDS AS FICTIVE NODE AND LINKS //////
+  add_node("FIELD_NODE", "1"); //This node is added last and has ID == N_nodes-1
+  for(unsigned int l=1; l<Bounds.size(); l++)
+    if(F[l-1]!=0)
+      for(unsigned int i=Bounds[l-1]; i<Bounds[l]; ++i)
+        add_link(N_nodes-1, i, "FIELD" + std::to_string(l), F[l-1]);
+  
+  return *this;
 }
 
-// bool graph::increment_label_assignment() {}
+const graph& graph::update_multipartite_spin_model(const col_vector<unsigned int>& Np, const matrix<double>& J, const col_vector<double>& F) {
+  clear_links();
+  ///////////////// LINKING THE GRAPH //////////////////
+  col_vector<unsigned int> Bounds(Np.size()+1);
+  for(unsigned int i=0; i<Bounds.size(); ++i)
+    Bounds[i] = 0;
+  for(unsigned int i=1; i<Bounds.size(); ++i)
+    for(unsigned int j=0; j<i; ++j)
+      Bounds[i] += Np[j]; // Bounds == [0, N1, N1+N2, N1+N2+N3, N1+N2+N3+N4, ...]
 
-// graph& graph::classify_nodes_precisely(const unsigned int& num_classes) {
-//   N_labels = num_classes;
-//   for(unsigned int i=0; i<N_nodes; i++)
-//     nodes[i].label.name = std::to_string(rand()%num_classes);
+  //Linking diagonal
+  for(unsigned int l=1; l<Bounds.size(); ++l)
+    if(J[l-1][l-1]!=0)
+      for(unsigned int i=Bounds[l-1]; i<Bounds[l]; ++i)
+        for(unsigned int j=Bounds[l-1]; j<i; ++j)
+          add_link_no_checks(i, j, 'P'+std::to_string(l)+"_P"+std::to_string(l), J[l-1][l-1]);
+  // Linking off diagonal
+  for(unsigned int l=1; l<Bounds.size(); ++l)
+    for(unsigned int m=1; m<l; ++m)
+      if(J[l-1][m-1]!=0)
+        for(unsigned int i=Bounds[l-1]; i<Bounds[l]; ++i)
+          for(unsigned int j=Bounds[m-1]; j<Bounds[m]; ++j)
+            add_link_no_checks(i, j, 'P'+std::to_string(m)+"_P"+std::to_string(l), J[l-1][m-1]);
 
+  /////// ADDING FIELDS AS FICTIVE LINKS TO BIAS NODE ///////
+  for(unsigned int l=1; l<Bounds.size(); l++)
+    if(F[l-1]!=0)
+      for(unsigned int i=Bounds[l-1]; i<Bounds[l]; ++i)
+        add_link(N_nodes-1, i, "FIELD" + std::to_string(l), F[l-1]);
+
+  return *this;
+}
+
+bool graph::check_multipartite(col_vector<unsigned int>& Np) const {
+  ////////////// CONSISTENCY CHECK //////////////
+  if(N_labels > 2) {
+    std::cerr << "----------------------------------------------------------------------------------\n"
+              << "ERROR: GRAPH IS INAPPROPRIATE SPIN MODEL (has more than 2 different labels)!\n"
+              << "----------------------------------------------------------------------------------\n";
+#ifdef INTERPRETER_MODE
+    return -1;
+#else
+    exit(1);
+#endif
+  };
   
+  for(unsigned int i=0; i<N_nodes; ++i)
+    if(nodes[i].label.name != "1" && nodes[i].label.name != "-1") {
+      std::cerr << "----------------------------------------------------------------------------------------------\n"
+                << "ERROR: GRAPH IS INAPPROPRIATE SPIN MODEL (has labels that are different from \"1\" and \"-1\")!\n"
+                << "DEFECTED LABEL OF NODE " << nodes[i].name << " (id="<< i <<") is " << nodes[i].label.name << '\n'
+                << "----------------------------------------------------------------------------------------------\n";
+#ifdef INTERPRETER_MODE
+    return -1;
+#else
+    exit(2);
+#endif
+  };
+
+  ////////////// NODES IDS CHECK //////////////
+  unsigned int count = 0;
+  for(unsigned int l=0; l<Np.size(); ++l) {
+    std::size_t pos_ = nodes[count].name.find('_') + 1;
+    std::string partite_name = nodes[count].name.substr(0, pos_);
+    for(unsigned int i=count; i<count+Np[l]; ++i)
+      if(nodes[i].name.substr(0, pos_) != partite_name) {
+        std::cerr << "--------------------------------------------------------------\n"
+                  << "ERROR: Incorrect assignment of nodes IDs for " << partite_name << '\n'
+                  << "The problem with the node[" << i << "], which is named " << nodes[i].name << '\n'
+                  << "--------------------------------------------------------------\n";
+#ifdef INTERPRETER_MODE
+        return -1;
+#else
+        exit(2);
+#endif
+      }
+    count += Np[l];
+  }
+
+  ////////////// NUMBER ON NODES CHECK //////////////
+  unsigned int N = 0; //Number of nodes based on the vector provided
+  for(unsigned int i=0; i<Np.size(); ++i)
+    N += Np[i];
+  if(N+1 != N_nodes) {
+    if(N == N_nodes)
+      std::cerr << "----------------------------------------------------------------------------------\n"
+                << "WARNING: There is no feeld node in the graph!\n"
+                << "----------------------------------------------------------------------------------\n";
+    else {
+      std::cerr << "----------------------------------------------------------------------------------\n"
+                << "ERROR: Number of nodes in the graph is " << N_nodes << " instead of " << N+1 << '\n'
+                << "----------------------------------------------------------------------------------\n";
+#ifdef INTERPRETER_MODE
+      return -1;
+#else
+      exit(1);
+#endif
+    }
+  }
+
+  ////////////// FIELD NODE CHECK //////////////
+  if(nodes[N].name != "FIELD_NODE") {
+    std::cerr << "----------------------------------------------------------------------------------\n"
+              << "ERROR: The field node is named " << nodes[N].name << " instead of FIELD_NODE\n"
+              << "----------------------------------------------------------------------------------\n";
+#ifdef INTERPRETER_MODE
+    return -1;
+#else
+    exit(1);
+#endif
+  }
+  return 1;
+}
+
+
+col_vector<double> graph::partites_magnetizations(col_vector<unsigned int>& Np) const {
+  col_vector<double> M(Np.size());
+
+  double m;
+  unsigned int count = 0;
+  for(unsigned int l=0; l<Np.size(); ++l) {
+    m = 0;
+    for(unsigned int i=count; i<count+Np[l]; i++) {
+      m += std::stoi(nodes[i].label.name);
+    }
+    M[l] = m;
+    count += Np[l];
+  }
+
+  return M;
+}
+
+col_vector<double> graph::partites_average_magnetizations(col_vector<unsigned int>& Np) const {
+  col_vector<double> M(Np.size());
+
+  double m;
+  unsigned int count = 0;
+  for(unsigned int l=0; l<Np.size(); ++l) {
+    m = 0;
+    for(unsigned int i=count; i<count+Np[l]; i++) {
+      m += std::stoi(nodes[i].label.name);
+    }
+    M[l] = m/Np[l];
+    count += Np[l];
+  }
+  
+  return M;
+}
+
+////////// MULTIPARTITES END ////////////
+
+///////////////////// SPIN DYNAMICS END ///////////////////////////////////
+
+/////////////// RANDOM GRAPH GENERATORS BEGIN /////////////////////////////
+graph& graph::Metropolis_generator(double(&P)(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly) {
+  srand(seed);
+  matrix<bool> A(N_nodes), A_new(N_nodes);
+  if(initialize_randomly) {
+    //// Initialiasing adjacency matrix randomly ////
+    for(unsigned int i=0; i<N_nodes; ++i)
+      for(unsigned int j=0; j<i; ++j)
+        A[i][j] = A[j][i] = rand()%2;
+    for(unsigned int i=0; i<N_nodes; ++i)
+      A[i][i] = 0;
+    A_new = A;
+  }
+  else
+    A_new = A = adjacency_matrix();
+
+  //// Running Metropolis algorithm ////
+  unsigned int i,j;
+  for(unsigned int n=0; n<N_iters; ++n) {
+    do {
+      i = rand()%N_nodes;
+      j = rand()%N_nodes;
+    } while(i==j);
+    A_new[i][j] = A_new[j][i] = !A[i][j];
+    if(rand()/(double)RAND_MAX < P(A_new)/P(A))
+      A[i][j] = A[j][i] = A_new[i][j];
+    else
+      A_new[i][j] = A_new[j][i] = A[i][j];
+  }
+  
+  build_from_adjacency_matrix(A);
     
-//   return *this;
-// }
+  return *this;
+}
 
-// graph& graph::classify_nodes_greedy_heuristic(const unsigned int& num_classes) {
-//   srand(time(NULL));
-//   // Assigning labels at random
-//   N_labels = num_classes;
-//   for(unsigned int i=0; i<N_nodes; i++)
-//     nodes[i].label.name = std::to_string(rand()%num_classes);
 
-//   return *this;
-// }
+graph& graph::MF_Metropolis_generator(double(&P)(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly) {
+  srand(seed);
+  //// Initialiasing adjacency matrix randomly ////
+  matrix<bool> A(N_nodes);
+  unsigned int L_old=0, L_new=0; //Numbers of links
+  if(initialize_randomly) {
+    for(unsigned int i=0; i<N_nodes; ++i)
+      for(unsigned int j=0; j<i; ++j)
+        L_old += A[i][j] = A[j][i] = rand()%2;
+    for(unsigned int i=0; i<N_nodes; ++i)
+      A[i][i] = 0;
+    L_new = L_old;
+  }
+  else {
+    A = adjacency_matrix();
+    L_new = L_old = N_links;
+  }
+  
+  //// Running Metropolis algorithm ////
+  unsigned int i,j;
+  for(unsigned int n=0; n<N_iters; ++n) {
+    do { 
+      i = rand()%N_nodes;
+      j = rand()%N_nodes;
+    } while(i==j);
+    if(A[i][j])
+      --L_new;
+    else
+      ++L_new;
+    
+    if(rand()/(double)RAND_MAX < P(L_new)/P(L_old)) {
+      A[i][j] = A[j][i] = !A[i][j];
+      L_old = L_new;
+    }
+    else
+      L_new = L_old;
+  }
+  
+  build_from_adjacency_matrix(A);
+    
+  return *this;
+}
 
+graph& graph::GB_Metropolis_generator(double(&H)(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly, const double &T) {
+  srand(seed);
+  //// Initialiasing adjacency matrix randomly ////
+  matrix<bool> A(N_nodes), A_new(N_nodes);
+  if(initialize_randomly) {
+    for(unsigned int i=0; i<N_nodes; ++i)
+      for(unsigned int j=0; j<i; ++j)
+        A[i][j] = A[j][i] = rand()%2;
+    for(unsigned int i=0; i<N_nodes; ++i)
+      A[i][i] = 0;
+    A_new = A;
+  }
+  else
+    A_new = A = adjacency_matrix();
+
+  //// Running Metropolis algorithm ////
+  unsigned int i,j;
+  for(unsigned int n=0; n<N_iters; ++n) {
+    do {
+      i = rand()%N_nodes;
+      j = rand()%N_nodes;
+    } while(i==j);
+    A_new[i][j] = A_new[j][i] = !A[i][j];
+    if(rand()/(double)RAND_MAX < exp(1/T*(H(A)-H(A_new))))
+      A[i][j] = A[j][i] = A_new[i][j];
+    else
+      A_new[i][j] = A_new[j][i] = A[i][j];
+  }
+  
+  build_from_adjacency_matrix(A);
+  
+  return *this;
+}
+graph& graph::MF_GB_Metropolis_generator(double(&H)(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly, const double &T) {
+  srand(seed);
+  matrix<bool> A(N_nodes);
+  unsigned int L_old=0, L_new=0; //Numbers of links
+  if(initialize_randomly) {
+    //// Initialiasing adjacency matrix randomly ////
+    for(unsigned int i=0; i<N_nodes; ++i)
+      for(unsigned int j=0; j<i; ++j)
+        L_old += A[i][j] = A[j][i] = rand()%2;
+    for(unsigned int i=0; i<N_nodes; ++i)
+      A[i][i] = 0;
+    L_new = L_old;
+  }
+  else {
+    A = adjacency_matrix();
+    L_new = L_old = N_links;
+  }
+  //// Running Metropolis algorithm ////
+  unsigned int i, j;
+  for(unsigned int n=0; n<N_iters; ++n) {
+    do {
+      i = rand()%N_nodes;
+      j = rand()%N_nodes;
+    } while(i==j);
+    if(A[i][j])
+      --L_new;
+    else
+      ++L_new;
+    
+    if(rand()/(double)RAND_MAX < exp(1/T*(H(L_old)-H(L_new)))) {
+      A[i][j] = A[j][i] = !A[i][j];
+      L_old = L_new;
+    }
+    else
+      L_new = L_old;
+  }
+  
+  build_from_adjacency_matrix(A);
+  return *this;
+}
+/////////////// RANDOM GRAPH GENERATORS END ///////////////////////////////
+
+///////////////////// CLASSIFICATION BEGIN ////////////////////////////////
+labeling graph::initialize_labeling_for_classification(const unsigned short &N_classes, const std::string* class_names) {
+  if(N_nodes < N_classes) {
+    std::cerr << "--------------------------------------------------------------------------\n"
+              << "ERROR: Number of nodes in the graph is smaller than the number of classes!\n"
+              << "--------------------------------------------------------------------------\n";
+#ifdef INTERPRETER_MODE
+    return -1;
+#else
+    exit(1);
+#endif
+  }
+
+  labeling L(N_nodes, N_classes);
+  unsigned int i=0;
+  do L.set_label_by_index(i, i);
+  while(++i < N_classes);
+  do L.set_label_by_index(i, N_classes-1);
+  while(++i < N_nodes);
+  
+  load_labeling(L, class_names);
+  
+  return L;
+}
+
+graph& graph::load_labeling(const labeling &L, const std::string* class_names) {
+  if(N_labels != L.num_classes()) {
+    delete[] labels;
+    N_labels = L.num_classes();
+    labels = new label[N_labels];
+  }
+  if(class_names) {
+    for(unsigned short i=0; i<N_labels; ++i) {
+      labels[i].name = class_names[i];
+      labels[i].id = i;
+    }
+  }
+  else {
+    for(unsigned short i=0; i<N_labels; ++i) {
+      // labels[i].name = std::to_string(i);
+      labels[i].id = i;
+    }
+  }
+  for(unsigned int i=0; i<N_nodes; ++i) {
+    nodes[i].label.id = L[i]; //Label IDs only create overheads even here
+    nodes[i].label.name = labels[L[i]].name;
+  }
+  return *this;
+}
+
+matrix<double> graph::link_probabilities() const {//THIS FUNCTION USES LABELS IDs!
+  matrix<double> L(N_labels, N_labels);
+  for(unsigned int i=0; i<N_labels; ++i)
+    L[i][i] = 0;
+  for(unsigned int i=0; i<N_labels; ++i)
+    for(unsigned int j=0; j<i; j++)
+      L[i][j] = L[j][i] = 0;
+  
+  for(std::list<link>::const_iterator it_links=links.begin(); it_links!=links.end(); ++it_links)
+    ++L[it_links->node1->label.id][it_links->node2->label.id];
+
+  for(unsigned int i=0; i<N_labels; ++i)
+    for(unsigned int j=0; j<i; j++)
+      L[j][i] = (L[i][j] += L[j][i]);
+  // Now L[i][j] contains the number of links connecting nodes with labels i and j
+
+  unsigned int *node_counters = new unsigned int[N_labels]; //Count nodes with certain labels
+  for(unsigned int l=0; l<N_labels; ++l) {
+    node_counters[l] = 0;
+    for(unsigned int i=0; i<N_nodes; ++i)
+      if(nodes[i].label.id == l)
+        ++node_counters[l];
+  }
+  // Now we know the counts of nodes of each type.
+  // We will divide numbers of links in L by total possible numbers of links
+
+  for(unsigned int i=0; i<N_labels; ++i)
+    for(unsigned int j=0; j<i; j++)
+      L[i][j] = L[j][i] /= node_counters[i]*node_counters[j];
+  for(unsigned int i=0; i<N_labels; ++i)
+    L[i][i] /= node_counters[i]*(node_counters[i]-1)/2;
+  
+  delete[] node_counters;
+  return L;
+}
+
+matrix<double> graph::regularized_link_probabilities() const {
+  matrix<double> L(N_labels, N_labels);
+  for(unsigned int i=0; i<N_labels; ++i)
+    L[i][i] = 0;
+  for(unsigned int i=0; i<N_labels; ++i)
+    for(unsigned int j=0; j<i; j++)
+      L[i][j] = L[j][i] = 0;
+  
+  for(std::list<link>::const_iterator it_links=links.begin(); it_links!=links.end(); ++it_links)
+    ++L[it_links->node1->label.id][it_links->node2->label.id];
+
+  for(unsigned int i=0; i<N_labels; ++i)
+    for(unsigned int j=0; j<i; j++)
+      L[j][i] = (L[i][j] += L[j][i] + 0.0001);
+  for(unsigned int i=0; i<N_labels; ++i)
+    L[i][i] += 0.0001;
+  // Now L[i][j] contains the number of links connecting nodes with labels i and j
+
+  unsigned int *node_counters = new unsigned int[N_labels]; //Count nodes with certain labels
+  for(unsigned int l=0; l<N_labels; ++l) {
+    node_counters[l] = 0;
+    for(unsigned int i=0; i<N_nodes; ++i)
+      if(nodes[i].label.id == l)
+        ++node_counters[l];
+  }
+  // Now we know the counts of nodes of each type.
+  // We will divide numbers of links in L by total possible numbers of links
+
+  for(unsigned int i=0; i<N_labels; ++i)
+    for(unsigned int j=0; j<i; j++)
+      L[i][j] = L[j][i] /= node_counters[i]*node_counters[j] + 0.01;
+  for(unsigned int i=0; i<N_labels; ++i)
+    L[i][i] /= node_counters[i]*(node_counters[i]-1)/2 + 0.01;
+  
+  delete[] node_counters;
+  return L;
+}
+
+double graph::loglikelihood() const {
+// This function deliberately does not use regularized_link_probabilities() funaction for optimisation
+  matrix<unsigned int> L(N_labels, N_labels);
+  for(unsigned int i=0; i<N_labels; ++i)
+    L[i][i] = 0;
+  for(unsigned int i=0; i<N_labels; ++i)
+    for(unsigned int j=0; j<i; j++)
+      L[i][j] = L[j][i] = 0;
+  
+  for(std::list<link>::const_iterator it_links=links.begin(); it_links!=links.end(); ++it_links)
+    ++L[it_links->node1->label.id][it_links->node2->label.id];
+
+  for(unsigned int i=0; i<N_labels; ++i)
+    for(unsigned int j=0; j<i; j++)
+      L[j][i] = (L[i][j] += L[j][i]);
+  // Now L[i][j] contains the number of links connecting nodes with labels i and j
+  unsigned int *node_counters = new unsigned int[N_labels]; //Count nodes with certain labels
+  for(unsigned int l=0; l<N_labels; ++l) {
+    node_counters[l] = 0;
+    for(unsigned int i=0; i<N_nodes; ++i)
+      if(nodes[i].label.id == l)
+        ++node_counters[l];
+  }
+  // Now we know the counts of nodes of each type and can compute maximim numbers of links
+  
+  double log_likelihood = 0;
+  for(unsigned int i=0; i<N_labels; ++i)
+    for(unsigned int j=0; j<i; ++j) {
+      double L_max = node_counters[i]*node_counters[j];
+      double link_prob = L[i][j]/L_max;
+      log_likelihood += L[i][j]*log(link_prob) + (L_max-L[i][j])*log(1-link_prob);
+    }
+  for(unsigned int i=0; i<N_labels; ++i) {
+    double L_max = node_counters[i]*(node_counters[i]-1)/2;
+    double link_prob = L[i][i]/L_max;
+    log_likelihood += L[i][i]*log(link_prob) + (L_max-L[i][i])*log(1-link_prob);
+  }
+  delete[] node_counters;
+  return log_likelihood;
+}
+
+double graph::regularized_loglikelihood() const {
+  // This function deliberately does not use regularized_link_probabilities() funaction for optimisation
+  matrix<unsigned int> L(N_labels, N_labels);
+  for(unsigned int i=0; i<N_labels; ++i)
+    L[i][i] = 0;
+  for(unsigned int i=0; i<N_labels; ++i)
+    for(unsigned int j=0; j<i; j++)
+      L[i][j] = L[j][i] = 0;
+  
+  for(std::list<link>::const_iterator it_links=links.begin(); it_links!=links.end(); ++it_links)
+    ++L[it_links->node1->label.id][it_links->node2->label.id];
+
+  for(unsigned int i=0; i<N_labels; ++i)
+    for(unsigned int j=0; j<i; j++)
+      L[j][i] = (L[i][j] += L[j][i]);
+  // Now L[i][j] contains the number of links connecting nodes with labels i and j
+  unsigned int *node_counters = new unsigned int[N_labels]; //Count nodes with certain labels
+  for(unsigned int l=0; l<N_labels; ++l) {
+    node_counters[l] = 0;
+    for(unsigned int i=0; i<N_nodes; ++i)
+      if(nodes[i].label.id == l)
+        ++node_counters[l];
+  }
+  // Now we know the counts of nodes of each type and can compute maximim numbers of links
+  
+  double log_likelihood = 0;
+  for(unsigned int i=0; i<N_labels; ++i)
+    for(unsigned int j=0; j<i; ++j) {
+      double L_max = node_counters[i]*node_counters[j];
+      double link_prob = (L[i][j] + 0.0001)/(L_max + 0.01);
+      log_likelihood += L[i][j]*log(link_prob) + (L_max-L[i][j])*log(1-link_prob);
+    }
+  for(unsigned int i=0; i<N_labels; ++i) {
+    double L_max = node_counters[i]*(node_counters[i]-1)/2;
+    double link_prob = (L[i][i] + 0.0001)/(L_max + 0.01);
+    log_likelihood += L[i][i]*log(link_prob) + (L_max-L[i][i])*log(1-link_prob);
+  }
+  delete[] node_counters;
+  return log_likelihood;
+}
+
+std::list<labeling> graph::modularity_classifier_precise(const unsigned short &num_classes, const std::string* class_names) {
+  std::list<labeling> labelings;
+  labeling L = initialize_labeling_for_classification(num_classes, class_names);
+  labelings.push_back(L);
+  double modularity, modularity_max = -1.79769e+308; //Initializing with min(double)
+  do {
+    load_labeling(L);
+    modularity = this->modularity();
+    if(modularity > modularity_max) {
+      labelings.clear();
+      labelings.push_back(L);
+      modularity_max = modularity;
+    }
+    else 
+      if(modularity == modularity_max)
+        labelings.push_back(L);
+  } while(!--L);
+#ifndef QUIET_MODE
+  std::cerr << "MAX_MODULARITY = " <<  modularity_max << '\n';
+  std::cerr << "MAX_RELATIVE_MODULARITY = " << this->load_labeling(labelings.back()).relative_modularity()) << '\n';
+#endif
+  return labelings;
+}
+
+std::list<labeling> graph::ML_classifier_precise(const unsigned short &num_classes, const std::string* class_names) {
+  std::list<labeling> labelings;
+  labeling L = initialize_labeling_for_classification(num_classes, class_names);
+  double loglikelihood, loglikelihood_max = -1.79769e+308; //Initializing with min(double)
+  do {
+    load_labeling(L);
+    loglikelihood = regularized_loglikelihood();
+    if(loglikelihood > loglikelihood_max) {
+      labelings.clear();
+      labelings.push_back(L);
+      loglikelihood_max = loglikelihood;
+    }
+    else 
+      if(loglikelihood == loglikelihood_max)
+        labelings.push_back(L);  
+  } while(!--L);
+#ifdef QUIET_MODE
+  std::cerr << "MAX_LOGLIKELIHOOD = " << loglikelihood_max << '\n';
+#endif
+  return labelings;
+}
 ////////////////////// CLASSIFICATION END /////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////
 ///////////////// GRAPH COMPUTATIONAL FUNCTIONS END ///////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-void graph::clear_links() {
+graph& graph::clear_links() {
   std::list<link>::iterator it_links;
   while(!links.empty()) {
     it_links = links.begin();
     remove_link(it_links);
-  }
+  }  
+  return *this;
 }
 
-void graph::clear() {
+graph& graph::clear() {
   delete[] nodes;
   nodes = NULL;
   delete[] labels;
@@ -1452,6 +2227,36 @@ void graph::clear() {
   N_labels = 0;
 
   NODES_ARRAY_SIZE = 0;
+
+  return *this;
+}
+
+graph& graph::operator=(const graph& gr) {
+  clear();
+
+  /*NODES_SORTED = gr.NODES_SORTED;*/
+  NODES_ARRAY_SIZE = gr.NODES_ARRAY_SIZE;
+  nodes = new node[NODES_ARRAY_SIZE];
+
+  N_nodes = gr.N_nodes;
+  N_labels = gr.N_labels;
+  N_links = gr.N_links;
+  
+  for(unsigned int i=0; i<N_nodes; ++i)
+    nodes[i] = gr.nodes[i];
+
+  labels = new label[N_labels];
+  for(unsigned int i=0; i<N_labels; ++i)
+    labels[i] = gr.labels[i];
+
+  // Copying links, redirecting node pointers
+  for(std::list<link>::const_iterator it_links = gr.links.begin(); it_links!=gr.links.end(); ++it_links) {
+    links.push_back(*it_links);
+    links.back().node1 = nodes + (it_links->node1 - gr.nodes);
+    links.back().node2 = nodes + (it_links->node2 - gr.nodes);
+  }
+
+  return *this;
 }
 /////////////////////////////////////////////////////////////////////////
 void graph::append_nodes_array(const unsigned int& n) {

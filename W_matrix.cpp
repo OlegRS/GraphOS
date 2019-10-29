@@ -44,11 +44,11 @@ W_matrix::W_matrix(const W_matrix& W)  {
   array = new double[sz];
   
   for(unsigned int i=0; i<sz; i++)
-      this->array[i] = W.array[i];
+    array[i] = W.array[i];
 }
 
 unsigned int W_matrix::size() const {
-  return this -> dim_x;
+  return dim_x;
 }
 
 double* W_matrix::operator[](const unsigned int &i) const {

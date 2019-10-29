@@ -1,12 +1,16 @@
+//BUGS:
+// 1). Label IDs are set incorrectly, when spins are initialised by randomize_spins(). Should be OK when we get rid of IDs. FIXED BUT NOT TESTED MUCH!
+
 //TO DO
   // 1). Search by name over nodes should be improved by sorting the array of nodes or implementing good hash table!
-  // 2). Since graph stores labels it will be better to make nodes store pointers to labels instead of labels themselves node::node.set_label() should be changed to something that checks what are the other labels in the graph, and storing pointers instead of labels themselves will make it natural. Also it will be more efficient to implement node::set_label(unsigned int label_id). But this optimization is questionable since nodes outside the graph will have no labels. In this case node should be a protected class in class graph and node should store the pointer to a graph to which it belongs. This can be implememted differently. Node can erase label_name everytime it is added to a grph, since label has id. Alternatively if we get rid of ids we can store labels as char* and everytime we add node to a graph delete[] this char and redirect the pointer to the corresponding label - this is better since node does not have to know anything about the graph in this case and char* replaces the id.
+  // 2). Since graph stores labels it will be better to make nodes store pointers to labels instead of labels themselves node::node.set_label() should be changed to something that checks what are the other labels in the graph, and storing pointers instead of labels themselves will make it natural. Also it will be more efficient to implement node::set_label(unsigned int label_id). But this optimization is questionable since nodes outside the graph will have no labels. In this case node should be a protected class in class graph and node should store the pointer to a graph to which it belongs. This can be implememted differently. Node can erase label_name every time it is added to a grph, since label has id. Alternatively if we get rid of ids we can store labels as char* and everytime we add node to a graph delete[] this char and redirect the pointer to the corresponding label - this is better since node does not have to know anything about the graph in this case and char* replaces the id.
   // 3). Do the same thing with links. Create class graph::link_type : public graph::label and store link types in the graph while only storing pionters to the link types in the links which are in the graph.
   // 4). Implement your own lists (or, better, deque or que) and instead of saving array of itterators to links in each node, save array of pointers
   // 5). Possibly get rid of node and label ids
   // 6). Change link type type from std::string to char*, since empty std::string weighs 56 bytes.
   // 7). "remove_nodes_with_degree" and "remove_nodes_with_label" functions should be optimised
-//TO DO
+  // 8). Instead of storing the array of labels in the graph it will be good to implement nested class "labeling" which should encapsulate the array of labels and allow increments, which are needed for node classification functions. Maybe this is not needed since now we only store the array of labels which occur in the graph not the full labels assignment.
+
 #ifndef GRAPHLIB_H
 #define GRAPHLIB_H
 
@@ -15,6 +19,7 @@
 #include <list>
 
 #include "matrix.h"
+#include "labeling.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -30,12 +35,10 @@ class graph;
 class graph {
   
 public:
-  
   struct label; //nested class
   
 protected:
   
-  bool NODES_SORTED = false;
   unsigned int NODES_ARRAY_SIZE;
   
   node* nodes;
@@ -52,16 +55,16 @@ protected:
 
   label* find_label(const std::string&);
   
-  void move_node(const unsigned int&, const unsigned int&); //Moves node in the array redirecting links (needed for sorting)
-  void sort_nodes(); //Places all inactive nodes to the right and the rest sorts by name
-  
+  // void move_node(const unsigned int&, const unsigned int&); //Moves node in the array redirecting links (needed for sorting)
+  // void sort_nodes(); //Places all inactive nodes to the right and the rest sorts by name
 public:
   
   graph();
-  graph(const graph&); //Copy constructor
+  graph(const graph&);
   graph(const unsigned int& N); //Create graph reserving memory for N nodes
   graph(const std::string&, unsigned int N_additional_nodes=0); //Load labeled graph from efficient format to array, allocating more memory than needed to add nodes later on.
   graph(const std::string&, const std::string&);  //Load graph from Cytoscape .sif file and from labels assignment .attrs file
+  graph(const matrix<bool>& adjacency_matrix); //Create simple non-directed graph from adjacency matrix
 
   void append_nodes_array(const unsigned int &N); //Reallocates memory for array of nodes adding extra space for N nodes
   
@@ -71,8 +74,8 @@ public:
 
   void add_node(const node&, const std::string&); //May be useful for creating intersecting graphs with shared nodes
   graph& add_node(const std::string &name, const std::string &label_name);
-  graph& add_node(const std::string &name) { return add_node(name,""); }
-  graph& add_node_no_checks(const std::string &name, const std::string &label_name);
+  graph& add_node(const std::string &name) { return add_node(name,"_"); }
+  graph& add_node_no_checks(const std::string &name, const std::string &label_name="_");
   
   graph& remove_node_no_checks(const std::string&); //removes node by name, removes its links, but does not check if any labels should be removed
   graph& remove_node(const std::string&); //remove by name and remove the links
@@ -99,7 +102,7 @@ public:
 
   inline link* get_link(const unsigned int &node1_id, const unsigned int &node2_id) const;
 
-  bool is_simple() const;
+  bool is_simple() const; // Redundant! We already check to not add self-links!
   
   std::string* get_labels() const;
   matrix<std::string> get_labels_vec() const;
@@ -111,17 +114,21 @@ public:
   void save_labels(const std::string&) const;
   
   void save(const std::string&) const;
-  void save_to_sif_and_attrs(const std::string &name) const;
+  void save_to_sif_and_attrs(const std::string &name) const; //Saves the graph in Cytoscape recognised format
 
   graph& load(const std::string&, unsigned int N_additional_nodes=0); //Loads the graph with free space for additional nodes
+  
+  graph& build_from_adjacency_matrix(const matrix<bool>& A); //Clears the graph and rebuilds with adjacency matrix A
 
-  void clear_links();
-  void clear();
+  graph& clear_links();
+  graph& clear();
+
+  graph& operator=(const graph&);
 
   //////////////////// COMPUTATIONAL FUNCTIONS BEGIN ////////////////////////
-  const unsigned int& number_of_nodes() const { return N_nodes;  }
-  const unsigned int& number_of_links() const { return N_links;  }
-  const unsigned int& number_of_labels() const { return N_labels; }
+  const unsigned int& number_of_nodes() const { return N_nodes;  } //REDUNDANT (already have num_nodes)
+  const unsigned int& number_of_links() const { return N_links;  } //REDUNDANT (already have num_links)
+  const unsigned int& number_of_labels() const { return N_labels; } //REDUNDANT (already have num_labels)
   
   unsigned int max_degree() const;
   unsigned int min_degree() const;
@@ -160,7 +167,8 @@ public:
 
   //// Spin model functions begin ////
   const graph& randomize_spins(const int &seed);
-  const graph& simulate_Glauber_Dynamics(const int &seed, const double &Temperature, const unsigned int &N_steps);
+  const graph& simulate_Glauber_Dynamics_no_fields(const int &seed, const double &Temperature, const unsigned int &N_steps);
+  const graph& simulate_Glauber_Dynamics_with_fields(const int &seed, const double &Temperature, const unsigned int &N_steps);
   
   short* spin_sequence() const; //Implicitly allocates memory!!!
   col_vector<short> spin_sequence_col_vector() const;
@@ -172,16 +180,46 @@ public:
   graph& set_spin_sequence(const row_vector<short>&);
   graph& set_spin_sequence_2D(const matrix<short>&);
   matrix<short> spin_sequence_2D(const unsigned int &dim_y, const unsigned int &dim_x) const; //Usefull to represent 2-D pictures to play with associative memory (with each node being a pixel)
+
+  /* Multipartites functions begin */
+  const graph& construct_multipartite_spin_model(const col_vector<unsigned int>& N_partites, const matrix<double>& Interactions, const col_vector<double>& Fields);
+  const graph& update_multipartite_spin_model(const col_vector<unsigned int>& N_partites, const matrix<double>& Interactions, const col_vector<double>& Fields);
+  bool check_multipartite(col_vector<unsigned int>& Numbers_of_nodes_in_partites) const; //Checks if nodes IDs are addigned in a way that first N_1 IDs correspond to first partite, then N_2 ID's to the second and so on. Also checks if the graph is appropriate multipartite with field node.
+  
+  col_vector<double> partites_magnetizations(col_vector<unsigned int>& Numbers_of_nodes_in_partites) const;
+  col_vector<double> partites_magnetizations(unsigned int& N_partites) const;
+  col_vector<double> partites_magnetizations() const;
+
+  col_vector<double> partites_average_magnetizations(col_vector<unsigned int>& Numbers_of_nodes_in_partites) const;
+  col_vector<double> partites_average_magnetizations(unsigned int& N_partites) const;
+  col_vector<double> partites_average_magnetizations() const;
+  /*  Multipartites functions end  */
+
   //// Spin model functions end ////
 
+  //// Random Graph generators begin ////
+  graph& Metropolis_generator(double(&P)(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true); //Generates random graph from the ensemble defined by distribution P, which is passed in a form of a function of the adjacency matrix.
+  graph& MF_Metropolis_generator(double(&P)(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true); //Generates random graph from the ensemble defined by distribution P, which is passed in a form of a function of the number of links.
+  graph& GB_Metropolis_generator(double(&H)(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
+  graph& MF_GB_Metropolis_generator(double(&H)(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the number of links.
+  //// Random Graph generators ens ////
+
   //// Classification functions begin ////
-  // This set of functions performs inference of labels in the maximum-entropy ensemble with soft constraints on W_labels.
-  double loglikelihood() const; //Computes likelihood of the label assignment in the max entropy ensemble with soft constraints on W_labels.
-  bool increment_label_assignment();
-  graph& classify_nodes_precisely(const unsigned int &num_classes);
-  graph& classify_nodes_greedy_heuristic(const unsigned int &num_classes);
-  //// Classification functions end ////
+  // Function below creates the correct labeling in the graph to start iterations over labelings and returns this labeling
+  labeling initialize_labeling_for_classification(const unsigned short &N_classes, const std::string* class_names=NULL);
+  graph& load_labeling(const labeling&, const std::string* class_names=NULL);
+
+  matrix<double> link_probabilities() const;
+  matrix<double> regularized_link_probabilities() const;
+  double loglikelihood() const; //Computes likelihood of the label assignment in the max entropy ensemble with soft constraints on W_labels
+  double regularized_loglikelihood() const; //Computes likelihood with small "perturbations" making sure there is no division by zero 
+  std::list<labeling> modularity_classifier_precise(const unsigned short &num_classes, const std::string* class_names=NULL);
+  std::list<labeling> ML_classifier_precise(const unsigned short &num_classes, const std::string* class_names=NULL);
   
+  // graph& classify_nodes_precisely(const unsigned short &num_classes);
+  // graph& classify_nodes_greedy_heuristic(const unsigned int &num_classes);
+    
+  //// Classification functions end ////  
   
   ///////////////////// COMPUTATIONAL FUNCTIONS END //////////////////////////
   
