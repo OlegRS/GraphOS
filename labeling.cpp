@@ -1,4 +1,4 @@
-#include "labeling.h"
+#include "labeling.hpp"
 
 #define QUIET_MODE  // disables printing of some common warnings and info
 // #define SILENT_MODE // disables printing of most warnings and info

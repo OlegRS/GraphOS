@@ -10,16 +10,17 @@
   // 6). Change link type type from std::string to char*, since empty std::string weighs 56 bytes.
   // 7). "remove_nodes_with_degree" and "remove_nodes_with_label" functions should be optimised
   // 8). Instead of storing the array of labels in the graph it will be good to implement nested class "labeling" which should encapsulate the array of labels and allow increments, which are needed for node classification functions. Maybe this is not needed since now we only store the array of labels which occur in the graph not the full labels assignment.
+  // 9). Links may store iterators in the list, That way one can efficiently remove links based on pointers to them.
 
-#ifndef GRAPHLIB_H
-#define GRAPHLIB_H
+#ifndef GRAPHLIB_HPP
+#define GRAPHLIB_HPP
 
 #include <time.h>
 #include <math.h>
 #include <list>
 
-#include "matrix.h"
-#include "labeling.h"
+#include "matrix.hpp"
+#include "labeling.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -50,6 +51,7 @@ protected:
   unsigned int N_links; //Number of links
   
   bool remove_link(std::list<link>::iterator&); //Removes link with certain iterator
+  // graph& remove_link(link*); //NOT IMPLEMENTED (see TODO 9).
 
   graph& remove_node_no_checks(node *p_node);
 
@@ -84,15 +86,14 @@ public:
   graph& remove_nodes_with_degree(const unsigned int &k);
   graph& remove_nodes_with_label(const std::string&);
 
-  void add_link_no_checks(const unsigned int&, const unsigned int&, std::string="pp", double weight=0);
-  graph& add_link(const unsigned int&, const unsigned int&, std::string="pp", double weight=0);
+  void add_link_no_checks(const unsigned int&, const unsigned int&, const std::string& ="pp", const double& weight=0);
+  graph& add_link(const unsigned int&, const unsigned int&, const std::string& ="pp", const double& weight=0);
   void add_link(const std::string&, const std::string&, const std::string& ="pp", double=0);
   void add_link(const std::string&, const std::string&, double&);
   void add_link(node*, node*, const std::string& ="pp", double=0);
     
   void remove_link(node*, node*, const std::string& ="pp", double=0);
   void remove_link(const std::string&, const std::string&, const std::string& ="pp", double=0);
-  void remove_link(unsigned int&);
 
   node* find_node(const std::string &node_name) const;
   node* find_node(const unsigned int &node_id) const; //Returns a node with certain position in the array (id)
@@ -181,28 +182,30 @@ public:
   graph& set_spin_sequence_2D(const matrix<short>&);
   matrix<short> spin_sequence_2D(const unsigned int &dim_y, const unsigned int &dim_x) const; //Usefull to represent 2-D pictures to play with associative memory (with each node being a pixel)
 
-  /* Multipartites functions begin */
-  const graph& construct_multipartite_spin_model(const col_vector<unsigned int>& N_partites, const matrix<double>& Interactions, const col_vector<double>& Fields);
-  const graph& update_multipartite_spin_model(const col_vector<unsigned int>& N_partites, const matrix<double>& Interactions, const col_vector<double>& Fields);
-  bool check_multipartite(col_vector<unsigned int>& Numbers_of_nodes_in_partites) const; //Checks if nodes IDs are addigned in a way that first N_1 IDs correspond to first partite, then N_2 ID's to the second and so on. Also checks if the graph is appropriate multipartite with field node.
+  /* Multi-component Curie-Weiss model functions begin */
+  const graph& construct_MCW_model(const col_vector<unsigned int>& N_partites, const matrix<double>& Interactions, const col_vector<double>& Fields);
+  const graph& update_MCW_model(const col_vector<unsigned int>& N_partites, const matrix<double>& Interactions, const col_vector<double>& Fields);
+  bool check_MCW_model(col_vector<unsigned int>& Numbers_of_nodes_in_partites) const; //Checks if nodes IDs are addigned in a way that first N_1 IDs correspond to first partite, then N_2 ID's to the second and so on. Also checks if the graph is appropriate multipartite with field node.
   
-  col_vector<double> partites_magnetizations(col_vector<unsigned int>& Numbers_of_nodes_in_partites) const;
-  col_vector<double> partites_magnetizations(unsigned int& N_partites) const;
-  col_vector<double> partites_magnetizations() const;
+  col_vector<double> CW_components_magnetizations(col_vector<unsigned int>& Numbers_of_nodes_in_components) const;
+  col_vector<double> CW_components_magnetizations(unsigned int& N_components) const;
+  col_vector<double> CW_components_magnetizations() const;
 
-  col_vector<double> partites_average_magnetizations(col_vector<unsigned int>& Numbers_of_nodes_in_partites) const;
-  col_vector<double> partites_average_magnetizations(unsigned int& N_partites) const;
-  col_vector<double> partites_average_magnetizations() const;
-  /*  Multipartites functions end  */
+  col_vector<double> CW_components_average_magnetizations(col_vector<unsigned int>& Numbers_of_nodes_in_components) const;
+  col_vector<double> CW_components_average_magnetizations(unsigned int& N_components) const;
+  col_vector<double> CW_components_average_magnetizations() const;
+  /*  Multi-component Curie-Weiss model functions end  */
 
   //// Spin model functions end ////
 
   //// Random Graph generators begin ////
-  graph& Metropolis_generator(double(&P)(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true); //Generates random graph from the ensemble defined by distribution P, which is passed in a form of a function of the adjacency matrix.
-  graph& MF_Metropolis_generator(double(&P)(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true); //Generates random graph from the ensemble defined by distribution P, which is passed in a form of a function of the number of links.
-  graph& GB_Metropolis_generator(double(&H)(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
-  graph& MF_GB_Metropolis_generator(double(&H)(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the number of links.
-  //// Random Graph generators ens ////
+  graph& Metropolis_generator(double P(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true); //Generates random graph from the ensemble defined by distribution P, which is passed in a form of a function of the adjacency matrix.
+  graph& MF_Metropolis_generator(double P(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true); //Generates random graph from the ensemble defined by distribution P, which is passed in a form of a function of the number of links.
+  graph& GB_Metropolis_generator(double H(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
+  graph& MF_GB_Metropolis_generator(double H(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the number of links.
+  
+  graph& sample_p_star_model(const unsigned int &N_iters, const int &seed, const col_vector<double>& T, const bool &initialize_randomly=true, const double &temp=1); //Uses Metropolis Dynamics to sample from p-star model with parameters T. Doesn't construct adjacency matrix, PASS PARAMETERS: T[0] corresponds to t_1 and T[p-1] to t_p ! !!!!! IMPLEMENTATION IS WRONG !!!!!
+  //// Random Graph generators end ////
 
   //// Classification functions begin ////
   // Function below creates the correct labeling in the graph to start iterations over labelings and returns this labeling
@@ -281,7 +284,7 @@ public:
   node& operator=(const node&);
 
   //////////////// FOR SPIN MODELS ///////////////
-  inline void set_spin_to_minus1(); 
+  inline void set_spin_to_minus1();
   inline void set_spin_to_plus1();
   //////////////// FOR SPIN MODELS ///////////////
   

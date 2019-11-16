@@ -1,4 +1,4 @@
-#include "matrix.h"
+#include "matrix.hpp"
 
 A_matrix::A_matrix() : symm_matrix() {}
 A_matrix::A_matrix(const char* file_name) : symm_matrix<bool>(file_name) {
@@ -69,6 +69,14 @@ bool A_matrix::check_consistency() const {
   return true;
 }
 
+unsigned int A_matrix::num_links() const {
+  unsigned int num_links = 0;
+  for(unsigned int i=0; i<dim_x; ++i)
+    for(unsigned int j=0; j<i; ++j)
+      num_links+=(*this)[i][j];
+  return num_links;
+}
+
 void A_matrix::save(const std::string& file_name) const {
   std::ofstream ofs(file_name.c_str());
   if(!ofs.is_open()) {
@@ -115,6 +123,53 @@ A_matrix& A_matrix::GB_Metropolis_generator(double(&H)(const A_matrix&), const u
       (*this)[i][j] = (*this)[j][i] = A_new[i][j];
     else
       A_new[i][j] = A_new[j][i] = (*this)[i][j];
+  }
+ 
+  return *this;
+}
+
+A_matrix& A_matrix::MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, const int &seed, const bool &initialize_randomly, const double &temp) {//Metropolis dynamics optimized for Hamiltonians that depend only on the number of links
+  //// Initialiasing adjacency matrix ////
+  A_matrix A_new(dim_x);
+  unsigned int L = 0; //Number of links
+  if(initialize_randomly) {
+    for(unsigned int i=0; i<dim_x; ++i)
+      for(unsigned int j=0; j<i; ++j) {
+        L += (*this)[i][j] = (*this)[j][i] = rand()%2;
+      }
+    for(unsigned int i=0; i<dim_x; ++i)
+      (*this)[i][i] = 0;
+  }
+  else //Computing number of links in the original adjacency matrix
+    for(unsigned int i=0; i<dim_x; ++i)
+      for(unsigned int j=0; j<i; ++j) {
+        L += (*this)[i][j];
+      }
+  A_new = (*this);
+
+  //// Running Metropolis algorithm ////
+  unsigned int i,j;
+  for(unsigned int n=0; n<N_iters; ++n) {
+    do {
+      i = rand()%dim_x;
+      j = rand()%dim_x;
+    } while(i==j);
+    A_new[i][j] = A_new[j][i] = !(*this)[i][j];
+    if((*this)[i][j] == 0)
+      if(rand()/(double)RAND_MAX < exp(1/temp*(H(L)-H(L+1)))) {
+        (*this)[i][j] = (*this)[j][i] = A_new[i][j];
+        L++;
+      }
+      else
+        A_new[i][j] = A_new[j][i] = (*this)[i][j];
+    else
+      if(rand()/(double)RAND_MAX < exp(1/temp*(H(L)-H(L-1)))) {
+        (*this)[i][j] = (*this)[j][i] = A_new[i][j];
+        L--;
+      }
+      else
+        A_new[i][j] = A_new[j][i] = (*this)[i][j];
+
   }
  
   return *this;

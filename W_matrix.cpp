@@ -1,4 +1,4 @@
-#include "matrix.h"
+#include "matrix.hpp"
 
 W_matrix::W_matrix() : matrix() {}
 W_matrix::W_matrix(const char* file_name) : matrix(file_name) {

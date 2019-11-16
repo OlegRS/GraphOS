@@ -1,7 +1,7 @@
 // Symmetric matrix handling is suboptimal in memory. Symmetric matrix should be a separate template which only takes n(n+1)/2 slots of type T in memory.
 
-#ifndef MATRIX_H
-#define MATRIX_H
+#ifndef MATRIX_HPP
+#define MATRIX_HPP
 
 #include <math.h>
 #include <stdlib.h>
@@ -90,7 +90,8 @@ public:
 template <typename T> class col_vector : public matrix<T> {//Column vector
 public:
   col_vector();
-  col_vector(const unsigned int &n);
+  col_vector(const unsigned int& n);
+  col_vector(const unsigned int& size, const T*);
   col_vector(const col_vector&);
   col_vector(const matrix<T>&);
 
@@ -145,12 +146,14 @@ class A_matrix : public symm_matrix<bool> {//Adjacency matrix
 
   unsigned int size() const {return dim_x;};
   bool check_consistency() const;
+  unsigned int num_links() const;
 
   void save(const std::string&) const;
 
   friend std::ostream& operator<<(std::ostream&, const A_matrix&);
 
-  A_matrix& GB_Metropolis_generator(double(&H)(const A_matrix&), const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
+  A_matrix& GB_Metropolis_generator(double(&Hamiltonian)(const A_matrix&), const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
+  A_matrix& MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
 };
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -682,6 +685,10 @@ template <typename T> symm_matrix<T> symm_matrix<T>::six() const {return (this->
 /////////////////////////////////////////////////////////////////////////////////
 template <typename T> col_vector<T>::col_vector() : matrix<T>() {}
 template <typename T> col_vector<T>::col_vector(const unsigned int &n) : matrix<T>(n,1) {}
+template <typename T> col_vector<T>::col_vector(const unsigned int& size, const T* array) : matrix<T>(size, 1) {
+  for(unsigned int i=0; i<size; ++i)
+    matrix<T>::array[i] = array[i];
+}
 template <typename T> col_vector<T>::col_vector(const col_vector& v) : matrix<T>(v) {}
 template <typename T> col_vector<T>::col_vector(const matrix<T> &M) : matrix<T>(M) {
   matrix<T>::dim_y = matrix<T>::dim_x*matrix<T>::dim_y;

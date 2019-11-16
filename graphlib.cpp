@@ -1,4 +1,5 @@
-#include "graphlib.h"
+#include "graphlib.hpp"
+#include "aux_math.hpp"
 
 //   !!! THESE MACROS ARE NOT YET FULLY IMPLEMENTED !!!
 // #define INTERPRETER_MODE //Don't exit() on errors, give ERROR message and continue (use with C++ interpreters like "cling" or "cint")
@@ -496,7 +497,7 @@ void graph::remove_link(const std::string &node1_name, const std::string &node2_
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-void graph::add_link_no_checks(const unsigned int &node1_id, const unsigned int &node2_id, std::string type, double weight) {
+void graph::add_link_no_checks(const unsigned int &node1_id, const unsigned int &node2_id, const std::string& type, const double& weight) {
   if(!N_nodes) {
     std::cerr << "------------------------------------------------\n"
               << "ERROR: Attempt to add a link to empty graph!\n"
@@ -511,7 +512,7 @@ void graph::add_link_no_checks(const unsigned int &node1_id, const unsigned int 
   N_links++;
 }
 /////////////////////////////////////////////////////////////////////////
-graph& graph::add_link(const unsigned int &i, const unsigned int &j, std::string type, double weight) {
+graph& graph::add_link(const unsigned int &i, const unsigned int &j, const std::string& type, const double& weight) {
   if(!N_nodes) {
     std::cerr << "------------------------------------------------\n"
               << "ERROR: Attempt to add a link to empty graph!\n"
@@ -944,7 +945,6 @@ col_vector<unsigned int> graph::degree_sequence_col_vec() const {
   for(unsigned int i=0; i<N_nodes; ++i)
     degrees[i] = nodes[i].degree();
   return degrees;
-
 }
 
 col_vector<node*> graph::nodes_with_max_degree_col_vec() const {
@@ -1007,7 +1007,7 @@ col_vector<node*> graph::nodes_with_degree_col_vec(unsigned int &k) const {
         ++count;
     
     col_vector<node*> V_nodes(count);
-    for(unsigned int i=0; count != 0; ++i)
+    for(unsigned int i=0; count!=0; ++i)
       if(degrees[i] == k)
         V_nodes[--count] = nodes + i;
     
@@ -1560,11 +1560,11 @@ matrix<short> graph::spin_sequence_2D(const unsigned int &dim_y, const unsigned 
 #else
     exit(1);
 #endif
-  }
+  }\
 }
 
 ////////// MULTIPARTITES BEGIN ////////////
-const graph& graph::construct_multipartite_spin_model(const col_vector<unsigned int>& Np, const matrix<double>& J, const col_vector<double>& F) {
+const graph& graph::construct_MCW_model(const col_vector<unsigned int>& Np, const matrix<double>& J, const col_vector<double>& F) {
   if(J.get_dim_x() != J.get_dim_y()) {
     std::cerr << "----------------------------------------------------------------------------------\n"
               << "ERROR: Multipartite cannot be created. Reason:\n"
@@ -1642,7 +1642,7 @@ const graph& graph::construct_multipartite_spin_model(const col_vector<unsigned 
   return *this;
 }
 
-const graph& graph::update_multipartite_spin_model(const col_vector<unsigned int>& Np, const matrix<double>& J, const col_vector<double>& F) {
+const graph& graph::update_MCW_model(const col_vector<unsigned int>& Np, const matrix<double>& J, const col_vector<double>& F) {
   clear_links();
   ///////////////// LINKING THE GRAPH //////////////////
   col_vector<unsigned int> Bounds(Np.size()+1);
@@ -1675,7 +1675,7 @@ const graph& graph::update_multipartite_spin_model(const col_vector<unsigned int
   return *this;
 }
 
-bool graph::check_multipartite(col_vector<unsigned int>& Np) const {
+bool graph::check_MCW_model(col_vector<unsigned int>& Np) const {
   ////////////// CONSISTENCY CHECK //////////////
   if(N_labels > 2) {
     std::cerr << "----------------------------------------------------------------------------------\n"
@@ -1728,7 +1728,7 @@ bool graph::check_multipartite(col_vector<unsigned int>& Np) const {
   if(N+1 != N_nodes) {
     if(N == N_nodes)
       std::cerr << "----------------------------------------------------------------------------------\n"
-                << "WARNING: There is no feeld node in the graph!\n"
+                << "WARNING: There is no field node in the graph!\n"
                 << "----------------------------------------------------------------------------------\n";
     else {
       std::cerr << "----------------------------------------------------------------------------------\n"
@@ -1757,7 +1757,7 @@ bool graph::check_multipartite(col_vector<unsigned int>& Np) const {
 }
 
 
-col_vector<double> graph::partites_magnetizations(col_vector<unsigned int>& Np) const {
+col_vector<double> graph::CW_components_magnetizations(col_vector<unsigned int>& Np) const {
   col_vector<double> M(Np.size());
 
   double m;
@@ -1774,7 +1774,7 @@ col_vector<double> graph::partites_magnetizations(col_vector<unsigned int>& Np) 
   return M;
 }
 
-col_vector<double> graph::partites_average_magnetizations(col_vector<unsigned int>& Np) const {
+col_vector<double> graph::CW_components_average_magnetizations(col_vector<unsigned int>& Np) const {
   col_vector<double> M(Np.size());
 
   double m;
@@ -1796,7 +1796,7 @@ col_vector<double> graph::partites_average_magnetizations(col_vector<unsigned in
 ///////////////////// SPIN DYNAMICS END ///////////////////////////////////
 
 /////////////// RANDOM GRAPH GENERATORS BEGIN /////////////////////////////
-graph& graph::Metropolis_generator(double(&P)(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly) {
+graph& graph::Metropolis_generator(double P(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly) {
   srand(seed);
   matrix<bool> A(N_nodes), A_new(N_nodes);
   if(initialize_randomly) {
@@ -1831,7 +1831,7 @@ graph& graph::Metropolis_generator(double(&P)(const matrix<bool>&), const unsign
 }
 
 
-graph& graph::MF_Metropolis_generator(double(&P)(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly) {
+graph& graph::MF_Metropolis_generator(double P(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly) {
   srand(seed);
   //// Initialiasing adjacency matrix randomly ////
   matrix<bool> A(N_nodes);
@@ -1874,7 +1874,7 @@ graph& graph::MF_Metropolis_generator(double(&P)(const unsigned int&), const uns
   return *this;
 }
 
-graph& graph::GB_Metropolis_generator(double(&H)(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly, const double &T) {
+graph& graph::GB_Metropolis_generator(double H(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly, const double &T) {
   srand(seed);
   //// Initialiasing adjacency matrix randomly ////
   matrix<bool> A(N_nodes), A_new(N_nodes);
@@ -1907,7 +1907,7 @@ graph& graph::GB_Metropolis_generator(double(&H)(const matrix<bool>&), const uns
   
   return *this;
 }
-graph& graph::MF_GB_Metropolis_generator(double(&H)(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly, const double &T) {
+graph& graph::MF_GB_Metropolis_generator(double H(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly, const double &T) {
   srand(seed);
   matrix<bool> A(N_nodes);
   unsigned int L_old=0, L_new=0; //Numbers of links
@@ -1945,6 +1945,71 @@ graph& graph::MF_GB_Metropolis_generator(double(&H)(const unsigned int&), const 
   }
   
   build_from_adjacency_matrix(A);
+  return *this;
+}
+
+graph& graph::sample_p_star_model(const unsigned int &N_iters, const int &seed, const col_vector<double>& T, const bool &initialize_randomly, const double &temp) {//Generates p-star model with parameters T. !!! To get the correct p-star model (not the one from the draft of the paper) change number_of_ordered_tuples(uint&, uint&) to binom(uint&, uint&), also the scaling 1/N_links_max should be replaced by 1/N_nodes. !!!
+  srand(seed);
+  // Initializing the graph
+  if(initialize_randomly) {//Initialising with Erdos-Renyi with P=.5
+    clear_links();
+    for(unsigned int i=0; i<N_nodes; ++i)
+      for(unsigned int j=0; j<i; ++j)
+        if(rand()%2)
+          add_link_no_checks(i,j);
+  }
+  // Obtaining initial degree sequences
+  col_vector<unsigned int> k = degree_sequence_col_vec();
+  // Counting initial numbers of stars
+  unsigned int p = T.size();
+  col_vector<unsigned int> stars(p); //Counts stars
+  for(unsigned int s=0; s<p; ++s) {
+    stars[s]=0;
+    for(unsigned int i=0; i<N_nodes; ++i)
+      stars[s]+=aux_math::number_of_ordered_tuples(k[i], s+1); // Number of p-stars of particular node[i]
+  }
+  
+  // Evaluating initial Hamiltonian (which is -H of the one from the paper)
+  double H=0, H_new=0;
+  double N_links_max = N_nodes*(N_nodes-1)/2.;
+  col_vector<double> T_rescaled = T; //Rescaled parameters
+  for(unsigned int s=0; s<p; ++s) {
+    T_rescaled[s] = T[s]/pow(2*N_links_max,s);
+    H -= T_rescaled[s]*stars[s];
+  }
+  // Running Metropolis dynamics
+  unsigned int i,j;
+  for(unsigned int n=0; n<N_iters; ++n) {
+    do {
+      i = rand()%N_nodes;
+      j = rand()%N_nodes;
+    } while(i==j);
+    link *l = get_link(i,j);
+    if(l) { //If there is a link, try to remove it
+      for(unsigned int s=1; s<=p; ++s)
+        H_new += T_rescaled[s-1]*s*(aux_math::number_of_ordered_tuples(k[i],s)/k[i] + aux_math::number_of_ordered_tuples(k[j],s)/k[j]); // C_n^k - C_(n-1)^k = k/n*C_n^k
+
+      if(rand() < exp(1/temp*(H-H_new))*RAND_MAX) {
+        remove_link(nodes+i, nodes+j); //Inefficient given that we already have a poiner to the link
+        k[i]--; k[j]--;
+        H = H_new;
+      }
+      else
+        H_new = H;
+    } 
+    else {
+      for(unsigned int s=1; s<=p; ++s)
+        H_new -= T_rescaled[s-1]*s*(aux_math::number_of_ordered_tuples(k[i]+1,s)/(k[i]+1) + aux_math::number_of_ordered_tuples(k[j]+1,s)/(k[j]+1)); // C_n^k - C_(n-1)^k = k/n*C_n^k
+
+      if(rand() < exp(1/temp*(H-H_new))*RAND_MAX) {
+        add_link_no_checks(i, j);
+        k[i]++; k[j]++;
+        H = H_new;
+      }
+      else
+        H_new = H;
+    }
+  }
   return *this;
 }
 /////////////// RANDOM GRAPH GENERATORS END ///////////////////////////////
@@ -2425,6 +2490,7 @@ bool node::operator==(const node &nd) {
   return true;
 }
 //////////////////////////////////////////////////////////////////
+
 node& node::operator=(const node &nd) {
   name = nd.name;
   label = nd.label;

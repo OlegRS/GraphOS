@@ -1,5 +1,5 @@
-#ifndef LABELING_H
-#define LABELING_H
+#ifndef LABELING_HPP
+#define LABELING_HPP
 
 #include <iostream>
 
