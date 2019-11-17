@@ -1,17 +1,3 @@
-//BUGS:
-// 1). Label IDs are set incorrectly, when spins are initialised by randomize_spins(). Should be OK when we get rid of IDs. FIXED BUT NOT TESTED MUCH!
-
-//TO DO
-  // 1). Search by name over nodes should be improved by sorting the array of nodes or implementing good hash table!
-  // 2). Since graph stores labels it will be better to make nodes store pointers to labels instead of labels themselves node::node.set_label() should be changed to something that checks what are the other labels in the graph, and storing pointers instead of labels themselves will make it natural. Also it will be more efficient to implement node::set_label(unsigned int label_id). But this optimization is questionable since nodes outside the graph will have no labels. In this case node should be a protected class in class graph and node should store the pointer to a graph to which it belongs. This can be implememted differently. Node can erase label_name every time it is added to a grph, since label has id. Alternatively if we get rid of ids we can store labels as char* and everytime we add node to a graph delete[] this char and redirect the pointer to the corresponding label - this is better since node does not have to know anything about the graph in this case and char* replaces the id.
-  // 3). Do the same thing with links. Create class graph::link_type : public graph::label and store link types in the graph while only storing pionters to the link types in the links which are in the graph.
-  // 4). Implement your own lists (or, better, deque or que) and instead of saving array of itterators to links in each node, save array of pointers
-  // 5). Possibly get rid of node and label ids
-  // 6). Change link type type from std::string to char*, since empty std::string weighs 56 bytes.
-  // 7). "remove_nodes_with_degree" and "remove_nodes_with_label" functions should be optimised
-  // 8). Instead of storing the array of labels in the graph it will be good to implement nested class "labeling" which should encapsulate the array of labels and allow increments, which are needed for node classification functions. Maybe this is not needed since now we only store the array of labels which occur in the graph not the full labels assignment.
-  // 9). Links may store iterators in the list, That way one can efficiently remove links based on pointers to them.
-
 #ifndef GRAPHLIB_HPP
 #define GRAPHLIB_HPP
 
@@ -168,8 +154,8 @@ public:
 
   //// Spin model functions begin ////
   const graph& randomize_spins(const int &seed);
-  const graph& simulate_Glauber_Dynamics_no_fields(const int &seed, const double &Temperature, const unsigned int &N_steps);
-  const graph& simulate_Glauber_Dynamics_with_fields(const int &seed, const double &Temperature, const unsigned int &N_steps);
+  const graph& run_Glauber_dynamics_no_fields(const int &seed, const double &Temperature, const unsigned int &N_steps);
+  const graph& run_Glauber_dynamics_with_fields(const int &seed, const double &Temperature, const unsigned int &N_steps);
   
   short* spin_sequence() const; //Implicitly allocates memory!!!
   col_vector<short> spin_sequence_col_vector() const;
