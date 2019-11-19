@@ -1,28 +1,32 @@
-#ifndef GRAPHLIB_HPP
-#define GRAPHLIB_HPP
+#ifndef __GRAPH_HPP__
+#define __GRAPH_HPP__
 
 #include <time.h>
 #include <math.h>
 #include <list>
-
-#include "matrix.hpp"
-#include "labeling.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
 
-/////////////////////////////
 class node;
 class link;
 class graph;
-/////////////////////////////
+
+#include "labeling.hpp"
+#include "matrices/matrix.hpp"
+#include "matrices/symm_matrix.hpp"
+#include "matrices/A_matrix.hpp"
+#include "matrices/W_matrix.hpp"
+#include "matrices/row_vector.hpp"
+#include "matrices/col_vector.hpp"
+#include "aux_math.hpp"
 
 class graph {
   
 public:
-  struct label; //nested class
+  struct label; // Nested struct
   
 protected:
   
@@ -217,100 +221,14 @@ public:
   friend std::ostream& operator<<(std::ostream& ,const graph&);
 };
 
-/////////////////////////////////////////////////////////////////////////
-struct graph::label {
-  unsigned int id;
-  std::string name;
+#include "label.hpp"
+#include "node.hpp"
+#include "link.hpp"
 
-  label();
-  label(const std::string& , unsigned int =-1);
-  label(const unsigned int&, const std::string&);
-  label(const label&);
 
-  label& operator=(const label&);
-  label& operator=(const std::string&);
-
-  bool operator==(const std::string&);
-  bool operator==(const label&);
-  bool operator<(const label&);
-};
-
-/////////////////////////////////////////////////////////////////////////
-class node {
-  friend class link;
-  friend class graph;
-protected:
-  
-  std::string name;
-  graph::label label;
-  
-  //Variables below only have meaning in a graph
-  std::list<std::list<link>::iterator> attached_links;
-  unsigned int id;
-public:
-  node();
-  node(const std::string&);
-  node(const std::string&, const std::string&);
-  node(const unsigned int&, const std::string&, const unsigned int&, const std::string&);
-  node(const node&);
-  
-  void set_name(const std::string &name_) {name = name_;}
-  void set_label_name(const std::string &name_) {label.name = name_;}
-  void set_label_id(const unsigned int &id_) {label.id = id_;}
-
-  const std::string& get_name() const {return name;}
-  const graph::label& get_label() const {return label;}
-  const unsigned int& get_id() const {return id;}
-  
-  unsigned int degree() const { return this->attached_links.size(); }
-
-  bool operator==(const node&);
-  bool operator==(const std::string&);
-
-  node& operator=(const node&);
-
-  //////////////// FOR SPIN MODELS ///////////////
-  inline void set_spin_to_minus1();
-  inline void set_spin_to_plus1();
-  //////////////// FOR SPIN MODELS ///////////////
-  
-  friend std::ostream& operator<<(std::ostream&, const node&);
-  friend std::ostream& operator<<(std::ostream&, const link&);
-  
-  ~node() {};
-};
-
-//////////////////////////////////////////////////////////////////////////
-class link {
-  friend class graph;
-protected:
-  node* node1;
-  node* node2;
-  std::string type;
-  double weight;
-public:
-  link(const link&);
-  link(node&, node&, const std::string& ="pp", double=0);
-  link(node* = NULL, node* = NULL, const std::string& ="pp", double=0); //creates a link, increases the degrees of the nodes.
-
-  void set_weight(const double &weight_) {weight = weight_;}
-  void set_type(const std::string &type_) {type = type_;}
-  void set_node1(node *p_node1) {node1 = p_node1;}
-  void set_node2(node *p_node2) {node2 = p_node2;}
-
-  double get_weight() const {return weight;}
-  const std::string& get_type() const {return type;}
-  node* get_node1() const {return node1;}
-  node* get_node2() const {return node2;}
-  
-  link& operator=(const link&);
-
-  bool operator==(const link&);
-  bool operator!=(const link&);
-  
-  ~link() {};
-
-  friend std::ostream& operator<<(std::ostream&, const link&);
-};
+#include "matrices/matrix.tpp"
+#include "matrices/symm_matrix.tpp"
+#include "matrices/col_vector.tpp"
+#include "matrices/row_vector.tpp"
 
 #endif

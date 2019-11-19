@@ -1,0 +1,8 @@
+# Ignoring some data files
+data/MCW_example/*
+
+# Ignoring binaries
+bin/*
+
+# Ignoring emacs temporary files
+src/\#*

@@ -1,4 +1,12 @@
-#include "matrix.hpp"
+#include "W_matrix.hpp"
+#include "col_vector.hpp"
+#include <iostream>
+#include <fstream>
+#include <math.h>
+
+#include "col_vector.tpp"
+#include "matrix.tpp"
+
 
 W_matrix::W_matrix() : matrix() {}
 W_matrix::W_matrix(const char* file_name) : matrix(file_name) {

@@ -1,8 +1,4 @@
-#include "graphlib.hpp"
-#include "aux_math.hpp"
-
-//   !!! THESE MACROS ARE NOT YET FULLY IMPLEMENTED !!!
-// #define INTERPRETER_MODE //Don't exit() on errors, give ERROR message and continue (use with C++ interpreters like "cling" or "cint")
+#include "graph.hpp"
 
 #define QUIET_MODE  // disables printing of some common warnings and info
 // #define SILENT_MODE // disables printing of most warnings and info
@@ -1337,7 +1333,7 @@ const graph& graph::randomize_spins(const int &seed) {
   return *this;
 }
 
-const graph& graph::simulate_Glauber_Dynamics_no_fields(const int &seed, const double &T, const unsigned int &N_steps) {
+const graph& graph::run_Glauber_dynamics_no_fields(const int &seed, const double &T, const unsigned int &N_steps) {
 #ifndef QUIET_MODE
   std::cerr << "*** Simulating Glauber Dynamics...\n";
 #endif
@@ -1383,7 +1379,7 @@ const graph& graph::simulate_Glauber_Dynamics_no_fields(const int &seed, const d
   return *this;
 }
 
-const graph& graph::simulate_Glauber_Dynamics_with_fields(const int &seed, const double &T, const unsigned int &N_steps) {
+const graph& graph::run_Glauber_dynamics_with_fields(const int &seed, const double &T, const unsigned int &N_steps) {
 #ifndef QUIET_MODE
   std::cerr << "*** Simulating Glauber Dynamics...\n";
 #endif
@@ -2366,142 +2362,5 @@ std::ostream& operator<<(std::ostream &os, const graph &gr) {
   
   os << "----------------------------GRAPH END---------------------------------\n";
     
-  return os;
-}
-
-//////////////////////////////////////////////////////////////////
-/////////////////////// graph::label /////////////////////////////
-//////////////////////////////////////////////////////////////////
-
-graph::label::label() : id(-1) {}
-
-graph::label::label(const std::string &name_, unsigned int id_) : id(id_), name(name_) {}
-
-graph::label::label(const unsigned int &id_, const std::string &name_) : id(id_), name(name_) {}
-
-graph::label::label(const label &l) : id(l.id), name(l.name) {}
-
-graph::label& graph::label::operator=(const graph::label &l) {
-  id = l.id;
-  name = l.name;
-  return *this;
-}
-
-graph::label& graph::label::operator=(const std::string &str) {
-  name = str;
-  return *this;
-}
-
-bool graph::label::operator==(const std::string &str) {
-  if(name == str)
-    return true;
-  return false;
-}
-
-bool graph::label::operator==(const graph::label &l) {
-  if(name == l.name)
-    return true;
-  return false;
-}
-
-std::ostream& operator<<(std::ostream &os, const graph::label &l) {
-  os << l.name;
-  return os;
-}
-
-bool graph::label::operator<(const graph::label &l) {
-  return name < l.name;
-}
-
-//////////////////////////////////////////////////////////////////
-//////////////////////////// link ////////////////////////////////
-//////////////////////////////////////////////////////////////////
-
-link::link(const link &l) : node1(l.node1), node2(l.node2), type(l.type), weight(l.weight) {}
-
-link::link(node* p_nd1, node* p_nd2, const std::string &type_, double weight_) : node1(p_nd1), node2(p_nd2), type(type_), weight(weight_) {}
-///////////////////////////////////////////////////////////////
-link& link::operator=(const link &l) {
-  node1 = l.node1;
-  node2 = l.node2;
-  type = l.type;
-  weight = l.weight;
-  
-  return *this;
-}
-///////////////////////////////////////////////////////////////
-bool link::operator==(const link &l) {
-  if((node1!=l.node1 && node1!=l.node2) || (node2!=l.node2 && node2!=l.node1) || weight!=l.weight || type != l.type)
-    return false;
-  
-  return true;
-}
-
-bool link::operator!=(const link &l) {
-  return !(*this == l);
-}
-///////////////////////////////////////////////////////////////
-std::ostream& operator<<(std::ostream &os, const link &l) {
-  os << l.node1->name << ' ' << l.type << ' ' << l.node2->name;
-  return os;
-}
-
-//////////////////////////////////////////////////////////////////
-//////////////////////////// node ////////////////////////////////
-//////////////////////////////////////////////////////////////////
-
-node::node() {}
-
-node::node(const std::string &name_) : name(name_) {}
-
-node::node(const unsigned int &id_, const std::string &name_, const unsigned int &label_id, const std::string &label_name) : name(name_), label(label_id,label_name), id(id_)  {}
-
-node::node(const std::string &name_, const std::string &label_) :  name(name_), label(label_) {}
-
-node::node(const node &nd) : name(nd.name), label(nd.label), id(nd.id) {}
-
-//////////////////////////////////////////////////////////////////
-inline void node::set_spin_to_minus1() {
-  if(label.name != "-1") {
-    label.name = "-1";
-    label.id = !label.id;
-  }
-}
-
-inline void node::set_spin_to_plus1() {
- if(label.name != "1") {
-    label.name = "1";
-    label.id = !label.id;
-  } 
-}
-//////////////////////////////////////////////////////////////////
-
-bool node::operator==(const std::string &name_) {
-  if(name != name_)
-    return false;
-  
-  return true;
-}
-
-bool node::operator==(const node &nd) {
-  if(name != nd.name)
-    return false;
-  
-  return true;
-}
-//////////////////////////////////////////////////////////////////
-
-node& node::operator=(const node &nd) {
-  name = nd.name;
-  label = nd.label;
-  id = nd.id;
-  attached_links = nd.attached_links;
-
-  return *this;
-}
-//////////////////////////////////////////////////////////////////
-
-std::ostream& operator<<(std::ostream &os, const node &nd) {
-  os << nd.name << ' ' << nd.label.name << " degree = " << nd.attached_links.size();
   return os;
 }
