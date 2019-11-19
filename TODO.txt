@@ -17,3 +17,5 @@
 - Links may store iterators in the list, That way one can efficiently remove links based on pointers to them.
 
 - Functions run_Glauber_dynamics_with_fields and run_Glauber_dynamics_no_fields should be unified to one function with additional argument of fields set to 0 by default. There is no need in introducing a field node as it slows down the computation.
+
+- Label should more logically be a nested class of class node rather than class graph
