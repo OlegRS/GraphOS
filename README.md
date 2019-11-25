@@ -2,7 +2,7 @@
 C++ library for network theory simulations
 
 # Purpose
-The library emerged from the my studies in various aspects of network theory. It is far from being any comprehensive, but rather simple and, thus, allowing the user to be in full control of what it does. The internal representation of graphs allows working with the large sparse networks in a memory efficient way.
+The library emerged from my studies in various aspects of network theory. It is far from being any comprehensive, but rather simple and, thus, allowing the user to be in full control of what it does. The internal representation of graphs allows working with the large sparse networks in a memory efficient way.
 
 # Functionality
 ## Generation
