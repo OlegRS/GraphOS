@@ -4,7 +4,7 @@
 
 - Do the same thing with links. Create class graph::link_type : public graph::label and store link types in the graph while only storing pionters to the link types in the links which are in the graph.
 
-- Implement your own lists (or, better, deque or que) and instead of saving array of itterators to links in each node, save array of
+- Implement your own lists (or, better, deque or que) and instead of saving array of itterators to links in each node, save array of pointers.
 
 - Possibly get rid of node and label ids
 
@@ -14,7 +14,7 @@
 
 - Instead of storing the array of labels in the graph it will be good to implement nested class "labeling" which should encapsulate the array of labels and allow increments, which are needed for node classification functions. Maybe this is not needed since now we only store the array of labels which occur in the graph not the full labels assignment.
 
-- Links may store iterators in the list, That way one can efficiently remove links based on pointers to them.
+- Links may store iterators in the list. That way one can efficiently remove links based on pointers to them.
 
 - Functions run_Glauber_dynamics_with_fields and run_Glauber_dynamics_no_fields should be unified to one function with additional argument of fields set to 0 by default. There is no need in introducing a field node as it slows down the computation.
 
