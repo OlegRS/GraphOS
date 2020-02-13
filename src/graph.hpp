@@ -4,6 +4,7 @@
 #include <time.h>
 #include <math.h>
 #include <list>
+#include <random>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -13,6 +14,7 @@
 class node;
 class link;
 class graph;
+class node_pair;
 
 #include "labeling.hpp"
 #include "matrices/matrix.hpp"
@@ -24,6 +26,7 @@ class graph;
 #include "aux_math.hpp"
 
 class graph {
+  friend class node_pair;
   
 public:
   struct label; // Nested struct
@@ -33,7 +36,7 @@ protected:
   unsigned int NODES_ARRAY_SIZE;
   
   node* nodes;
-  label* labels;
+  label* labels = NULL;
   std::list<link> links;
   
   unsigned int N_nodes; //Number of nodes (all elements of nodes array after N_nodes are treated as inactive)
@@ -76,13 +79,14 @@ public:
   graph& remove_nodes_with_degree(const unsigned int &k);
   graph& remove_nodes_with_label(const std::string&);
 
-  void add_link_no_checks(const unsigned int&, const unsigned int&, const std::string& ="pp", const double& weight=0);
+  graph& add_link_no_checks(const unsigned int&, const unsigned int&, const std::string& ="pp", const double& weight=0);
+  graph& add_link_no_checks(node* p_node1, node* p_node2, const std::string& ="pp", const double& weight=0);
   graph& add_link(const unsigned int&, const unsigned int&, const std::string& ="pp", const double& weight=0);
   void add_link(const std::string&, const std::string&, const std::string& ="pp", double=0);
   void add_link(const std::string&, const std::string&, double&);
-  void add_link(node*, node*, const std::string& ="pp", double=0);
+  graph& add_link(node*, node*, const std::string& ="pp", const double& weight=0);
     
-  void remove_link(node*, node*, const std::string& ="pp", double=0);
+  void remove_link(node*, node*, const std::string& type="pp", const double& weight=0);
   void remove_link(const std::string&, const std::string&, const std::string& ="pp", double=0);
 
   node* find_node(const std::string &node_name) const;
@@ -91,7 +95,11 @@ public:
   const node& get_node(const std::string &node_name) const;
   const node& get_node(const unsigned int &node_id) const; //Returns a node with certain position in the array (id)
 
+  node_pair get_node_pair(unsigned int &id1, unsigned int &id2);
+  col_vector<node_pair> random_node_pairs_col_vector(const unsigned int &N_pairs, const int &seed); //Returns N random pairs of nodes
+
   inline link* get_link(const unsigned int &node1_id, const unsigned int &node2_id) const;
+  inline link* get_link(const node *p_node1, const node *p_node2) const;
 
   bool is_simple() const; // Redundant! We already check to not add self-links!
   
@@ -110,6 +118,8 @@ public:
   graph& load(const std::string&, unsigned int N_additional_nodes=0); //Loads the graph with free space for additional nodes
   
   graph& build_from_adjacency_matrix(const matrix<bool>& A); //Clears the graph and rebuilds with adjacency matrix A
+
+  graph& set_ER_with_random_p(const unsigned int& seed);
 
   graph& clear_links();
   graph& clear();
@@ -139,6 +149,8 @@ public:
   double* degree_distribution() const; //Implicitly allocates memory!!!
   col_vector<double> degree_distribution_col_vector() const;
 
+  col_vector<double> clustering_coefficient_sequence() const;
+
   double label_distribution(std::string &label_name) const;
   double label_distribution(unsigned int &label_id) const;
   double* label_distribution() const; //Implicitly allocates memory!!!
@@ -154,7 +166,7 @@ public:
   double modularity() const;
   double relative_modularity() const; //Returns ratio between modularity and max modularity with current number of labels.
 
-  double assortativity() const;
+  double degree_assortativity() const;
 
   //// Spin model functions begin ////
   const graph& randomize_spins(const int &seed);
@@ -194,7 +206,10 @@ public:
   graph& GB_Metropolis_generator(double H(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
   graph& MF_GB_Metropolis_generator(double H(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the number of links.
   
-  graph& sample_p_star_model(const unsigned int &N_iters, const int &seed, const col_vector<double>& T, const bool &initialize_randomly=true, const double &temp=1); //Uses Metropolis Dynamics to sample from p-star model with parameters T. Doesn't construct adjacency matrix, PASS PARAMETERS: T[0] corresponds to t_1 and T[p-1] to t_p ! !!!!! IMPLEMENTATION IS WRONG !!!!!
+  graph& sample_p_star_model(const unsigned int &N_iters, const int &seed, const col_vector<double> &T, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1); //Uses Metropolis Dynamics to sample from p-star model with parameters T. Doesn't construct adjacency matrix, PASS PARAMETERS: T[0] corresponds to t_1 and T[p-1] to t_p ! N_pairs is the number of distinclt pairs of nodes picket at random and being linked (unlinked) simultaneously at a single MD step.
+  graph& sample_p_star_model_with_single_spin_Metropolis(const unsigned int &N_iters, const int &seed, const col_vector<double> &T, const bool &initialize_randomly=true, const double &temp=1); //Uses Metropolis Dynamics to sample from p-star model with parameters T. Doesn't construct adjacency matrix, PASS PARAMETERS: T[0] corresponds to t_1 and T[p-1] to t_p ! N_pairs is the number of distinclt pairs of nodes picket at random and being linked (unlinked) simultaneously at a single MD step.
+  
+  unsigned int count_p_star_model_iterations_until(bool stopping_condition(const graph&), const int &seed, const col_vector<double>& T, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1);
   //// Random Graph generators end ////
 
   //// Classification functions begin ////
@@ -223,6 +238,7 @@ public:
 
 #include "label.hpp"
 #include "node.hpp"
+#include "node_pair.hpp"
 #include "link.hpp"
 
 

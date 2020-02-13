@@ -6,6 +6,7 @@
 class node {
   friend class link;
   friend class graph;
+  friend class node_pair;
 protected:
   
   std::string name;
@@ -29,7 +30,12 @@ public:
   const graph::label& get_label() const {return label;}
   const unsigned int& get_id() const {return id;}
   
-  unsigned int degree() const { return this->attached_links.size(); }
+  unsigned int degree() const { return attached_links.size(); }
+  std::list<node*> adjacent_nodes_list() const;
+  col_vector<node*> adjacent_nodes_col_vector() const;
+  bool check_adjacency_to(const node& ) const;
+  bool check_adjacency_to(const node* ) const;
+  double clustering_coefficient() const;
 
   bool operator==(const node&);
   bool operator==(const std::string&);

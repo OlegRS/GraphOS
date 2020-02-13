@@ -8,7 +8,7 @@ namespace aux_math {
       return k*fact(k-1); // Tail recursion!
   }
   
-  long double number_of_ordered_tuples(const unsigned int& n, const unsigned int& k) {
+  long double number_of_ordered_subsets(const unsigned int& n, const unsigned int& k) {
     if(k<=n) {
       long double numer = 1;
       for(unsigned int i=0; i<k; ++i)
@@ -17,9 +17,15 @@ namespace aux_math {
     }
     return 0;
   }
-  
+
   long double binom(const unsigned int& n, const unsigned int& k) {
-    return number_of_ordered_tuples(n, k)/fact(k);
-  }
+    if(k<=n) {
+      long double numer = 1;
+      for(unsigned int i=0; i<k; ++i)
+        numer*=(n-i)/(double)(i+1);
+      return numer;
+    }
+    return 0;
+  }  
 }
 #endif

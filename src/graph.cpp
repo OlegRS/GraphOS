@@ -186,6 +186,38 @@ const node& graph::get_node(const unsigned int &node_id) const {
     exit(1);
   } 
 }
+
+node_pair graph::get_node_pair(unsigned int &id1, unsigned int &id2)  {
+  return node_pair(nodes+id1, nodes+id2, this);
+}
+
+col_vector<node_pair> graph::random_node_pairs_col_vector(const unsigned int &N, const int &seed) {
+  if(N_nodes*(N_nodes-1)/2 < N) {
+    std::cerr << "------------------------------------------------------------------------------------------\n"
+              << "ERROR: Attempt to obtain too many distinct pairs of nodes from a graph which is too small!\n"
+              << "------------------------------------------------------------------------------------------\n";
+    exit(1);
+  }
+  col_vector<node_pair> node_pairs(N);
+  std::default_random_engine generator;
+  generator.seed(seed);
+  std::uniform_int_distribution<> distribution(0, RAND_MAX);
+  auto rnd = std::bind(distribution, generator);
+
+  unsigned int i, j;
+  for(unsigned int l=0; l<N; ++l) {
+    do {
+      i = rnd()%N_nodes;
+      j = rnd()%N_nodes;
+    } while(i==j);
+    node_pairs[l] = get_node_pair(i, j);
+    for(unsigned int k=0; k<l; ++k)
+      if(node_pairs[k] == node_pairs[l])
+        --l;
+  }
+  
+  return node_pairs;
+}
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 link* graph::get_link(const unsigned int &node1_id, const unsigned int &node2_id) const {
@@ -194,6 +226,14 @@ link* graph::get_link(const unsigned int &node1_id, const unsigned int &node2_id
       return &(*(*it_it_links));
   return NULL;
 }
+
+inline link* graph::get_link(const node *p_node1, const node *p_node2) const {
+  for(std::list<std::list<link>::iterator>::const_iterator it_it_links = p_node1->attached_links.begin(); it_it_links!=p_node1->attached_links.end(); ++it_it_links)
+    if( (*it_it_links)->node2 == p_node2 || (*it_it_links)->node1 == p_node2 )
+      return &(*(*it_it_links));
+  return NULL;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool graph::is_simple() const {
@@ -405,6 +445,22 @@ graph& graph::build_from_adjacency_matrix(const matrix<bool>& A) {
 
   return *this;
 }
+
+graph& graph::set_ER_with_random_p(const unsigned int &seed) {
+  std::default_random_engine generator;
+  generator.seed(seed);
+  std::uniform_int_distribution<> distribution(0, RAND_MAX);
+  auto rnd = std::bind(distribution, generator);
+
+  clear_links();
+  double p = rnd();
+  for(unsigned int i=0; i<N_nodes; ++i)
+    for(unsigned int j=0; j<i; ++j)
+      if(rnd() < p)
+        add_link_no_checks(i,j);
+
+  return *this;
+}
 /////////////////////////////////////////////////////////////////////////
 bool graph::remove_link(std::list<link>::iterator &it_link) {
   //Searching the iterator of the iterator of the link in first node
@@ -436,8 +492,7 @@ bool graph::remove_link(std::list<link>::iterator &it_link) {
   return true;
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void graph::remove_link(node* p_node1, node* p_node2, const std::string &type, double weight) {
+void graph::remove_link(node* p_node1, node* p_node2, const std::string &type, const double& weight) {
   link l(p_node1, p_node2, type, weight);
 
   bool link_found = false;
@@ -492,8 +547,7 @@ void graph::remove_link(const std::string &node1_name, const std::string &node2_
 }
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
-void graph::add_link_no_checks(const unsigned int &node1_id, const unsigned int &node2_id, const std::string& type, const double& weight) {
+graph& graph::add_link_no_checks(const unsigned int &node1_id, const unsigned int &node2_id, const std::string& type, const double& weight) {
   if(!N_nodes) {
     std::cerr << "------------------------------------------------\n"
               << "ERROR: Attempt to add a link to empty graph!\n"
@@ -506,6 +560,25 @@ void graph::add_link_no_checks(const unsigned int &node1_id, const unsigned int 
   nodes[node2_id].attached_links.push_back(--links.end());
 
   N_links++;
+
+  return *this;
+}
+
+graph& graph::add_link_no_checks(node *p_node1, node *p_node2, const std::string& type, const double& weight) {
+  if(!N_nodes) {
+    std::cerr << "------------------------------------------------\n"
+              << "ERROR: Attempt to add a link to empty graph!\n"
+              << "------------------------------------------------\n";
+    exit(1);
+  }
+  
+  links.push_back(link(p_node1, p_node2, type, weight));
+  p_node1->attached_links.push_back(--links.end());
+  p_node2->attached_links.push_back(--links.end());
+
+  N_links++;
+
+  return *this;
 }
 /////////////////////////////////////////////////////////////////////////
 graph& graph::add_link(const unsigned int &i, const unsigned int &j, const std::string& type, const double& weight) {
@@ -545,13 +618,13 @@ graph& graph::add_link(const unsigned int &i, const unsigned int &j, const std::
   return *this;
 }
 
-void graph::add_link(node* node1, node* node2, const std::string &type, double weight) {
+graph& graph::add_link(node* node1, node* node2, const std::string &type, const double& weight) {
   
   if(node1 == node2) {
     std::cerr << "--------------------------------------------------\n"
               << "WARNING: Attempt to create a self-link is ignored!\n"
               << "--------------------------------------------------\n";
-    return;
+    return *this;
   }
   
   link l(node1, node2, type, weight);
@@ -572,8 +645,9 @@ void graph::add_link(node* node1, node* node2, const std::string &type, double w
     std::cerr << "--------------------------------------------------------------------------\n"
               << "WARNING: Attempt to add existing link \""<< l <<"\" is ignored!\n"
               << "--------------------------------------------------------------------------\n";
-    return;
-  }    
+    return *this;;
+  }
+  return *this;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1105,6 +1179,12 @@ col_vector<double> graph::degree_distribution_col_vector() const {
   }
 }
 
+col_vector<double> graph::clustering_coefficient_sequence() const {
+  col_vector<double> cc_sequence(N_nodes);
+  for(unsigned int i=0; i<N_nodes; ++i)
+    cc_sequence[i] = nodes[i].clustering_coefficient();
+  return cc_sequence;
+}
 
 double graph::label_distribution(std::string &label_name) const {
   unsigned int count = 0;
@@ -1275,7 +1355,7 @@ double graph::relative_modularity() const {
   return modularity() / (1 - 1 /double(N_labels) + 1/double(N_nodes)) * 2;
 }
 
-double graph::assortativity() const {
+double graph::degree_assortativity() const {
   return joint_distribution_of_connected_node_degrees().assortativity();
 }
 
@@ -1904,14 +1984,18 @@ graph& graph::GB_Metropolis_generator(double H(const matrix<bool>&), const unsig
   return *this;
 }
 graph& graph::MF_GB_Metropolis_generator(double H(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly, const double &T) {
-  srand(seed);
+  std::default_random_engine generator;
+  generator.seed(seed);
+  std::uniform_int_distribution<> distribution(0, RAND_MAX);
+  auto rnd = std::bind(distribution, generator);
+
   matrix<bool> A(N_nodes);
   unsigned int L_old=0, L_new=0; //Numbers of links
   if(initialize_randomly) {
     //// Initialiasing adjacency matrix randomly ////
     for(unsigned int i=0; i<N_nodes; ++i)
       for(unsigned int j=0; j<i; ++j)
-        L_old += A[i][j] = A[j][i] = rand()%2;
+        L_old += A[i][j] = A[j][i] = rnd()%2;
     for(unsigned int i=0; i<N_nodes; ++i)
       A[i][i] = 0;
     L_new = L_old;
@@ -1924,15 +2008,15 @@ graph& graph::MF_GB_Metropolis_generator(double H(const unsigned int&), const un
   unsigned int i, j;
   for(unsigned int n=0; n<N_iters; ++n) {
     do {
-      i = rand()%N_nodes;
-      j = rand()%N_nodes;
+      i = rnd()%N_nodes;
+      j = rnd()%N_nodes;
     } while(i==j);
     if(A[i][j])
       --L_new;
     else
       ++L_new;
     
-    if(rand()/(double)RAND_MAX < exp(1/T*(H(L_old)-H(L_new)))) {
+    if(rnd()/(double)RAND_MAX < exp(1/T*(H(L_old)-H(L_new)))) {
       A[i][j] = A[j][i] = !A[i][j];
       L_old = L_new;
     }
@@ -1944,69 +2028,137 @@ graph& graph::MF_GB_Metropolis_generator(double H(const unsigned int&), const un
   return *this;
 }
 
-graph& graph::sample_p_star_model(const unsigned int &N_iters, const int &seed, const col_vector<double>& T, const bool &initialize_randomly, const double &temp) {//Generates p-star model with parameters T. !!! To get the correct p-star model (not the one from the draft of the paper) change number_of_ordered_tuples(uint&, uint&) to binom(uint&, uint&), also the scaling 1/N_links_max should be replaced by 1/N_nodes. !!!
-  srand(seed);
+graph& graph::sample_p_star_model(const unsigned int &N_iters, const int &seed, const col_vector<double>& T, const unsigned int &N_pairs_max, const bool &initialize_randomly, const double &temp) {//Generates p-star model with parameters T. Note that the Hamiltonian here has the opposite sign to the one from the paper. Also we are using node::degree() function which is implemented through std::list<link>::size() function which should have O(1) time in C++11.
+  std::default_random_engine generator;
+  generator.seed(seed);
+  std::uniform_int_distribution<> distribution(0, RAND_MAX);
+  auto rnd = std::bind(distribution, generator);
+
   // Initializing the graph
-  if(initialize_randomly) {//Initialising with Erdos-Renyi with P=.5
-    clear_links();
-    for(unsigned int i=0; i<N_nodes; ++i)
-      for(unsigned int j=0; j<i; ++j)
-        if(rand()%2)
-          add_link_no_checks(i,j);
+  if(initialize_randomly)
+    set_ER_with_random_p(rnd());
+
+  unsigned int p = T.size(); //p-star model
+  col_vector<double> T_rescaled = T; //Rescaled parameters
+  for(unsigned int s=0; s<p; ++s)
+    T_rescaled[s] = T[s]/pow(N_nodes,s); //(s+1)! is already accounted for in the number of stars
+
+  // Running Metropolis dynamics
+  for(unsigned int n=0; n<N_iters; ++n) {
+    unsigned int N_pairs = rnd()%N_pairs_max + 1;
+    col_vector<node_pair> np = random_node_pairs_col_vector(N_pairs, rnd());
+    double delta_H = 0;
+    for(unsigned int i=0; i<N_pairs; ++i) {
+      unsigned int k1=np[i].get_node1()->degree();
+      unsigned int k2=np[i].get_node2()->degree();
+      if(np[i].linked()) // If there is a link, remove it
+        for(unsigned int s=1; s<=p; ++s)
+          delta_H += T_rescaled[s-1]*s*(aux_math::binom(k1,s)/k1 + aux_math::binom(k2,s)/k2); // C_n^k - C_(n-1)^k = k/n*C_n^k
+      else // If there is no link, add it
+        for(unsigned int s=1; s<=p; ++s)
+          delta_H -= T_rescaled[s-1]*s*(aux_math::binom(k1+1,s)/(k1+1) + aux_math::binom(k2+1,s)/(k2+1));
+      np[i].flip_link_state();
+    }
+
+    if(rnd() > exp(-1/temp*delta_H)*RAND_MAX)
+      //Reject the proposal and return everything to how it was by flipping link states again
+      for(unsigned int i=0; i<N_pairs; ++i)
+        np[i].flip_link_state();
   }
+  return *this;
+}
+
+graph& graph::sample_p_star_model_with_single_spin_Metropolis(const unsigned int &N_iters, const int &seed, const col_vector<double>& T, const bool &initialize_randomly, const double &temp) {//Generates p-star model with parameters T.
+  std::default_random_engine generator;
+  generator.seed(seed);
+  std::uniform_int_distribution<> distribution(0, RAND_MAX);
+  auto rnd = std::bind(distribution, generator);
+
+  // Initializing the graph
+  if(initialize_randomly)
+    set_ER_with_random_p(rnd());
+
   // Obtaining initial degree sequences
   col_vector<unsigned int> k = degree_sequence_col_vec();
   // Counting initial numbers of stars
   unsigned int p = T.size();
-  col_vector<unsigned int> stars(p); //Counts stars
-  for(unsigned int s=0; s<p; ++s) {
-    stars[s]=0;
-    for(unsigned int i=0; i<N_nodes; ++i)
-      stars[s]+=aux_math::number_of_ordered_tuples(k[i], s+1); // Number of p-stars of particular node[i]
-  }
-  
+    
   // Evaluating initial Hamiltonian (which is -H of the one from the paper)
-  double H=0, H_new=0;
-  double N_links_max = N_nodes*(N_nodes-1)/2.;
+  double delta_H=0;
   col_vector<double> T_rescaled = T; //Rescaled parameters
-  for(unsigned int s=0; s<p; ++s) {
-    T_rescaled[s] = T[s]/pow(2*N_links_max,s);
-    H -= T_rescaled[s]*stars[s];
-  }
+  for(unsigned int s=0; s<p; ++s)
+    T_rescaled[s] = T[s]/pow(N_nodes,s); //(s+1)! is already accounted for in the number of stars
+
   // Running Metropolis dynamics
   unsigned int i,j;
   for(unsigned int n=0; n<N_iters; ++n) {
     do {
-      i = rand()%N_nodes;
-      j = rand()%N_nodes;
+      i = rnd()%N_nodes;
+      j = rnd()%N_nodes;
     } while(i==j);
     link *l = get_link(i,j);
-    if(l) { //If there is a link, try to remove it
+    if(l) { //If there is a link, propose to remove it
       for(unsigned int s=1; s<=p; ++s)
-        H_new += T_rescaled[s-1]*s*(aux_math::number_of_ordered_tuples(k[i],s)/k[i] + aux_math::number_of_ordered_tuples(k[j],s)/k[j]); // C_n^k - C_(n-1)^k = k/n*C_n^k
+        delta_H += T_rescaled[s-1]*s*(aux_math::binom(k[i],s)/k[i] + aux_math::binom(k[j],s)/k[j]); // C_n^k - C_(n-1)^k = k/n*C_n^k
 
-      if(rand() < exp(1/temp*(H-H_new))*RAND_MAX) {
+      if(rnd() < exp(-1/temp*delta_H)*RAND_MAX) {
         remove_link(nodes+i, nodes+j); //Inefficient given that we already have a poiner to the link
         k[i]--; k[j]--;
-        H = H_new;
       }
-      else
-        H_new = H;
     } 
-    else {
+    else { //If there is a link, propose to add it
       for(unsigned int s=1; s<=p; ++s)
-        H_new -= T_rescaled[s-1]*s*(aux_math::number_of_ordered_tuples(k[i]+1,s)/(k[i]+1) + aux_math::number_of_ordered_tuples(k[j]+1,s)/(k[j]+1)); // C_n^k - C_(n-1)^k = k/n*C_n^k
+        delta_H -= T_rescaled[s-1]*s*(aux_math::binom(k[i]+1,s)/(k[i]+1) + aux_math::binom(k[j]+1,s)/(k[j]+1)); // C_n^k - C_(n-1)^k = k/n*C_n^k
 
-      if(rand() < exp(1/temp*(H-H_new))*RAND_MAX) {
+      if(rnd() < exp(-1/temp*delta_H)*RAND_MAX) {
         add_link_no_checks(i, j);
         k[i]++; k[j]++;
-        H = H_new;
       }
-      else
-        H_new = H;
     }
   }
   return *this;
+}
+
+unsigned int graph::count_p_star_model_iterations_until(bool stopping_condition(const graph&), const int &seed, const col_vector<double>& T, const unsigned int &N_pairs_max, const bool &initialize_randomly, const double &temp) {
+  std::default_random_engine generator;
+  generator.seed(seed);
+  std::uniform_int_distribution<> distribution(0, RAND_MAX);
+  auto rnd = std::bind(distribution, generator);
+
+  // Initializing the graph
+  if(initialize_randomly)
+    set_ER_with_random_p(rnd());
+
+  unsigned int p = T.size(); //p-star model
+  col_vector<double> T_rescaled = T; //Rescaled parameters
+  for(unsigned int s=0; s<p; ++s)
+    T_rescaled[s] = T[s]/pow(N_nodes,s); //(s+1)! is already accounted for in the number of stars
+
+  // Running Metropolis dynamics
+  unsigned long long N_iters = 0;
+  while(!stopping_condition(*this)) {
+    unsigned int N_pairs = rnd()%N_pairs_max + 1;
+    col_vector<node_pair> np = random_node_pairs_col_vector(N_pairs, rnd());
+    double delta_H = 0;
+    for(unsigned int i=0; i<N_pairs; ++i) {
+      unsigned int k1=np[i].get_node1()->degree();
+      unsigned int k2=np[i].get_node2()->degree();
+      if(np[i].linked()) // If there is a link, remove it
+        for(unsigned int s=1; s<=p; ++s)
+          delta_H += T_rescaled[s-1]*s*(aux_math::binom(k1,s)/k1 + aux_math::binom(k2,s)/k2); // C_n^k - C_(n-1)^k = k/n*C_n^k
+      else // If there is no link, add it
+        for(unsigned int s=1; s<=p; ++s)
+          delta_H -= T_rescaled[s-1]*s*(aux_math::binom(k1+1,s)/(k1+1) + aux_math::binom(k2+1,s)/(k2+1));
+      np[i].flip_link_state();
+    }
+
+    if(rnd() > exp(-1/temp*delta_H)*RAND_MAX)
+      //Reject the proposal and return everything to how it was by flipping link states again
+      for(unsigned int i=0; i<N_pairs; ++i)
+        np[i].flip_link_state();
+    ++N_iters;
+  }
+  return N_iters;
 }
 /////////////// RANDOM GRAPH GENERATORS END ///////////////////////////////
 
@@ -2337,7 +2489,8 @@ void graph::append_nodes_array(const unsigned int& n) {
 /////////////////////////////////////////////////////////////////////////
 graph::~graph() {
   delete[] nodes;
-  delete[] labels;
+  if(labels!=NULL)
+    delete[] labels;
 }
 /////////////////////////////////////////////////////////////////////////
 std::ostream& operator<<(std::ostream &os, const graph &gr) {
