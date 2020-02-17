@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
+#include <functional>
 
 class node;
 class link;
@@ -95,7 +96,8 @@ public:
   const node& get_node(const std::string &node_name) const;
   const node& get_node(const unsigned int &node_id) const; //Returns a node with certain position in the array (id)
 
-  node_pair get_node_pair(unsigned int &id1, unsigned int &id2);
+  inline node_pair get_node_pair(unsigned int &id1, unsigned int &id2);
+  node_pair random_node_pair(const unsigned int &seed);
   col_vector<node_pair> random_node_pairs_col_vector(const unsigned int &N_pairs, const int &seed); //Returns N random pairs of nodes
 
   inline link* get_link(const unsigned int &node1_id, const unsigned int &node2_id) const;

@@ -8,6 +8,7 @@
 #include <iostream>
 #include <string>
 #include <random>
+#include <functional>
 
 class A_matrix : public symm_matrix<bool> {//Adjacency matrix
   public:

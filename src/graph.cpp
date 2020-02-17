@@ -187,8 +187,21 @@ const node& graph::get_node(const unsigned int &node_id) const {
   } 
 }
 
-node_pair graph::get_node_pair(unsigned int &id1, unsigned int &id2)  {
-  return node_pair(nodes+id1, nodes+id2, this);
+node_pair graph::get_node_pair(unsigned int &id1, unsigned int &id2)  { return node_pair(nodes+id1, nodes+id2, this); }
+
+node_pair graph::random_node_pair(const unsigned int &seed) {
+  std::default_random_engine generator;
+  generator.seed(seed);
+  std::uniform_int_distribution<> distribution(0, RAND_MAX);
+  auto rnd = std::bind(distribution, generator);
+  
+  unsigned int i = rnd()%N_nodes;
+  unsigned int j = rnd()%N_nodes;
+  while(i==j) {
+    i = rnd()%N_nodes;
+    j = rnd()%N_nodes;
+  }
+  return node_pair(nodes+i, nodes+j, this);
 }
 
 col_vector<node_pair> graph::random_node_pairs_col_vector(const unsigned int &N, const int &seed) {
@@ -198,12 +211,12 @@ col_vector<node_pair> graph::random_node_pairs_col_vector(const unsigned int &N,
               << "------------------------------------------------------------------------------------------\n";
     exit(1);
   }
-  col_vector<node_pair> node_pairs(N);
   std::default_random_engine generator;
   generator.seed(seed);
   std::uniform_int_distribution<> distribution(0, RAND_MAX);
   auto rnd = std::bind(distribution, generator);
 
+  col_vector<node_pair> node_pairs(N);
   unsigned int i, j;
   for(unsigned int l=0; l<N; ++l) {
     do {
@@ -2103,7 +2116,7 @@ graph& graph::sample_p_star_model_with_single_spin_Metropolis(const unsigned int
 
       if(rnd() < exp(-1/temp*delta_H)*RAND_MAX) {
         remove_link(nodes+i, nodes+j); //Inefficient given that we already have a poiner to the link
-        k[i]--; k[j]--;
+        --k[i]; --k[j];
       }
     } 
     else { //If there is a link, propose to add it
@@ -2112,7 +2125,7 @@ graph& graph::sample_p_star_model_with_single_spin_Metropolis(const unsigned int
 
       if(rnd() < exp(-1/temp*delta_H)*RAND_MAX) {
         add_link_no_checks(i, j);
-        k[i]++; k[j]++;
+        ++k[i]; ++k[j];
       }
     }
   }
