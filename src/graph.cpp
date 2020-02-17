@@ -2095,9 +2095,8 @@ graph& graph::sample_p_star_model_with_single_spin_Metropolis(const unsigned int
   col_vector<unsigned int> k = degree_sequence_col_vec();
   // Counting initial numbers of stars
   unsigned int p = T.size();
-    
+  
   // Evaluating initial Hamiltonian (which is -H of the one from the paper)
-  double delta_H=0;
   col_vector<double> T_rescaled = T; //Rescaled parameters
   for(unsigned int s=0; s<p; ++s)
     T_rescaled[s] = T[s]/pow(N_nodes,s); //(s+1)! is already accounted for in the number of stars
@@ -2105,6 +2104,7 @@ graph& graph::sample_p_star_model_with_single_spin_Metropolis(const unsigned int
   // Running Metropolis dynamics
   unsigned int i,j;
   for(unsigned int n=0; n<N_iters; ++n) {
+    double delta_H=0;
     do {
       i = rnd()%N_nodes;
       j = rnd()%N_nodes;
