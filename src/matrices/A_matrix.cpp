@@ -4,6 +4,7 @@
 #include "symm_matrix.tpp"
 #include <math.h>
 #include <fstream>
+#include <functional>
 
 A_matrix::A_matrix() : symm_matrix() {}
 A_matrix::A_matrix(const char* file_name) : symm_matrix<bool>(file_name) {

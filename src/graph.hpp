@@ -4,7 +4,6 @@
 #include <time.h>
 #include <math.h>
 #include <list>
-#include <random>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -25,6 +24,7 @@ class node_pair;
 #include "matrices/row_vector.hpp"
 #include "matrices/col_vector.hpp"
 #include "aux_math.hpp"
+#include "randomisation/prng.hpp"
 
 class graph {
   friend class node_pair;
@@ -208,8 +208,8 @@ public:
   graph& GB_Metropolis_generator(double H(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
   graph& MF_GB_Metropolis_generator(double H(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the number of links.
   
-  graph& sample_p_star_model(const unsigned int &N_iters, const int &seed, const col_vector<double> &T, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1); //Uses Metropolis Dynamics to sample from p-star model with parameters T. Doesn't construct adjacency matrix, PASS PARAMETERS: T[0] corresponds to t_1 and T[p-1] to t_p ! N_pairs is the number of distinclt pairs of nodes picket at random and being linked (unlinked) simultaneously at a single MD step.
-  graph& sample_p_star_model_with_single_spin_Metropolis(const unsigned int &N_iters, const int &seed, const col_vector<double> &T, const bool &initialize_randomly=true, const double &temp=1); //Uses Metropolis Dynamics to sample from p-star model with parameters T. Doesn't construct adjacency matrix, PASS PARAMETERS: T[0] corresponds to t_1 and T[p-1] to t_p ! N_pairs is the number of distinclt pairs of nodes picket at random and being linked (unlinked) simultaneously at a single MD step.
+  graph& sample_p_star_model(const unsigned int &N_iters, prng& rnd, const col_vector<double> &T, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1); //Uses Metropolis Dynamics to sample from p-star model with parameters T. Doesn't construct adjacency matrix, PASS PARAMETERS: T[0] corresponds to t_1 and T[p-1] to t_p ! N_pairs is the number of distinclt pairs of nodes picket at random and being linked (unlinked) simultaneously at a single MD step.
+  graph& sample_p_star_model_with_single_spin_Metropolis(const unsigned int &N_iters, prng& rnd, const col_vector<double> &T, const bool &initialize_randomly=true, const double &temp=1); //Uses Metropolis Dynamics to sample from p-star model with parameters T. Doesn't construct adjacency matrix, PASS PARAMETERS: T[0] corresponds to t_1 and T[p-1] to t_p ! N_pairs is the number of distinclt pairs of nodes picket at random and being linked (unlinked) simultaneously at a single MD step.
   
   unsigned int count_p_star_model_iterations_until(bool stopping_condition(const graph&), const int &seed, const col_vector<double>& T, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1);
   //// Random Graph generators end ////

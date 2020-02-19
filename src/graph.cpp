@@ -2041,11 +2041,11 @@ graph& graph::MF_GB_Metropolis_generator(double H(const unsigned int&), const un
   return *this;
 }
 
-graph& graph::sample_p_star_model(const unsigned int &N_iters, const int &seed, const col_vector<double>& T, const unsigned int &N_pairs_max, const bool &initialize_randomly, const double &temp) {//Generates p-star model with parameters T. Note that the Hamiltonian here has the opposite sign to the one from the paper. Also we are using node::degree() function which is implemented through std::list<link>::size() function which should have O(1) time in C++11.
-  std::default_random_engine generator;
-  generator.seed(seed);
-  std::uniform_int_distribution<> distribution(0, RAND_MAX);
-  auto rnd = std::bind(distribution, generator);
+graph& graph::sample_p_star_model(const unsigned int &N_iters, prng& rnd, const col_vector<double>& T, const unsigned int &N_pairs_max, const bool &initialize_randomly, const double &temp) {//Generates p-star model with parameters T. Note that the Hamiltonian here has the opposite sign to the one from the paper. Also we are using node::degree() function which is implemented through std::list<link>::size() function which should have O(1) time in C++11.
+  // std::default_random_engine generator;
+  // generator.seed(seed);
+  // std::uniform_int_distribution<> distribution(0, RAND_MAX);
+  // auto rnd = std::bind(distribution, generator);
 
   // Initializing the graph
   if(initialize_randomly)
@@ -2081,11 +2081,11 @@ graph& graph::sample_p_star_model(const unsigned int &N_iters, const int &seed, 
   return *this;
 }
 
-graph& graph::sample_p_star_model_with_single_spin_Metropolis(const unsigned int &N_iters, const int &seed, const col_vector<double>& T, const bool &initialize_randomly, const double &temp) {//Generates p-star model with parameters T.
-  std::default_random_engine generator;
-  generator.seed(seed);
-  std::uniform_int_distribution<> distribution(0, RAND_MAX);
-  auto rnd = std::bind(distribution, generator);
+graph& graph::sample_p_star_model_with_single_spin_Metropolis(const unsigned int &N_iters, prng& rnd, const col_vector<double>& T, const bool &initialize_randomly, const double &temp) {//Generates p-star model with parameters T.
+  // std::default_random_engine generator;
+  // generator.seed(seed);
+  // std::uniform_int_distribution<> distribution(0, RAND_MAX);
+  // auto rnd = std::bind(distribution, generator);
 
   // Initializing the graph
   if(initialize_randomly)
