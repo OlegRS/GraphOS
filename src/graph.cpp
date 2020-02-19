@@ -189,12 +189,7 @@ const node& graph::get_node(const unsigned int &node_id) const {
 
 node_pair graph::get_node_pair(unsigned int &id1, unsigned int &id2)  { return node_pair(nodes+id1, nodes+id2, this); }
 
-node_pair graph::random_node_pair(const unsigned int &seed) {
-  std::default_random_engine generator;
-  generator.seed(seed);
-  std::uniform_int_distribution<> distribution(0, RAND_MAX);
-  auto rnd = std::bind(distribution, generator);
-  
+node_pair graph::random_node_pair(prng &rnd) {
   unsigned int i = rnd()%N_nodes;
   unsigned int j = rnd()%N_nodes;
   while(i==j) {
@@ -204,18 +199,13 @@ node_pair graph::random_node_pair(const unsigned int &seed) {
   return node_pair(nodes+i, nodes+j, this);
 }
 
-col_vector<node_pair> graph::random_node_pairs_col_vector(const unsigned int &N, const int &seed) {
+col_vector<node_pair> graph::random_node_pairs_col_vector(const unsigned int &N, prng &rnd) {
   if(N_nodes*(N_nodes-1)/2 < N) {
     std::cerr << "------------------------------------------------------------------------------------------\n"
               << "ERROR: Attempt to obtain too many distinct pairs of nodes from a graph which is too small!\n"
               << "------------------------------------------------------------------------------------------\n";
     exit(1);
   }
-  std::default_random_engine generator;
-  generator.seed(seed);
-  std::uniform_int_distribution<> distribution(0, RAND_MAX);
-  auto rnd = std::bind(distribution, generator);
-
   col_vector<node_pair> node_pairs(N);
   unsigned int i, j;
   for(unsigned int l=0; l<N; ++l) {
@@ -459,12 +449,7 @@ graph& graph::build_from_adjacency_matrix(const matrix<bool>& A) {
   return *this;
 }
 
-graph& graph::set_ER_with_random_p(const unsigned int &seed) {
-  std::default_random_engine generator;
-  generator.seed(seed);
-  std::uniform_int_distribution<> distribution(0, RAND_MAX);
-  auto rnd = std::bind(distribution, generator);
-
+graph& graph::set_ER_with_random_p(prng &rnd) {
   clear_links();
   double p = rnd();
   for(unsigned int i=0; i<N_nodes; ++i)
@@ -1407,8 +1392,7 @@ matrix<double> graph::interaction_matrix() const {
   return M;
 }
 
-const graph& graph::randomize_spins(const int &seed) {
-  srand(seed);
+const graph& graph::randomize_spins(prng &rnd) {
   if(N_labels!=2 || labels[0].name!="-1" || labels[0].id!=0 || labels[1].name!="1" || labels[1].id!=1) {
     if(labels != NULL)
       delete[] labels;
@@ -1421,12 +1405,12 @@ const graph& graph::randomize_spins(const int &seed) {
   }
   for(unsigned int i =0; i<N_nodes; i++) {
     if(nodes[i].name != "FIELD_NODE")
-      nodes[i].label.name = std::to_string(2*(short)(nodes[i].label.id = rand()%2)-1);
+      nodes[i].label.name = std::to_string(2*(short)(nodes[i].label.id = rnd()%2)-1);
   }
   return *this;
 }
 
-const graph& graph::run_Glauber_dynamics_no_fields(const int &seed, const double &T, const unsigned int &N_steps) {
+const graph& graph::run_Glauber_dynamics_no_fields(prng &rnd, const double &T, const unsigned int &N_steps) {
 #ifndef QUIET_MODE
   std::cerr << "*** Simulating Glauber Dynamics...\n";
 #endif
@@ -1448,11 +1432,10 @@ const graph& graph::run_Glauber_dynamics_no_fields(const int &seed, const double
   };
 
   ////////////// SIMULATING DYNAMICS ////////////////
-  srand(seed);
   double RAND_MAX_DOUBLE = double(RAND_MAX);
   
   for(unsigned int l=0; l<N_steps; ++l) {
-    unsigned int i = rand()%N_nodes;
+    unsigned int i = rnd()%N_nodes;
     
     double sum = 0; //!!!!! should be set to h_i !!!!!
     for(std::list<std::list<link>::iterator>::iterator it_it_links = nodes[i].attached_links.begin(); it_it_links != find_node(i)->attached_links.end(); ++it_it_links)
@@ -1461,7 +1444,7 @@ const graph& graph::run_Glauber_dynamics_no_fields(const int &seed, const double
       else
         sum += (*it_it_links)->weight * std::stoi((*it_it_links)->node1->label.name);
 
-    if( /*(1+tanh(sum/T))/2*/ 1/(1+exp(-2*sum/T)) > (rand()/RAND_MAX_DOUBLE) )
+    if( /*(1+tanh(sum/T))/2*/ 1/(1+exp(-2*sum/T)) > (rnd()/RAND_MAX_DOUBLE) )
       nodes[i].set_spin_to_plus1();
     else
       nodes[i].set_spin_to_minus1();
@@ -1472,7 +1455,7 @@ const graph& graph::run_Glauber_dynamics_no_fields(const int &seed, const double
   return *this;
 }
 
-const graph& graph::run_Glauber_dynamics_with_fields(const int &seed, const double &T, const unsigned int &N_steps) {
+const graph& graph::run_Glauber_dynamics_with_fields(prng &rnd, const double &T, const unsigned int &N_steps) {
 #ifndef QUIET_MODE
   std::cerr << "*** Simulating Glauber Dynamics...\n";
 #endif
@@ -1494,11 +1477,10 @@ const graph& graph::run_Glauber_dynamics_with_fields(const int &seed, const doub
   };
 
   ////////////// SIMULATING DYNAMICS ////////////////
-  srand(seed);
   double RAND_MAX_DOUBLE = double(RAND_MAX);
 
   for(unsigned int l=0; l<N_steps; ++l) {
-    unsigned int i = rand()%N_nodes; // Picking a node at random
+    unsigned int i = rnd()%N_nodes; // Picking a node at random
     if(nodes[i].name != "FIELD_NODE") {
       double sum = 0;
       for(std::list<std::list<link>::iterator>::iterator it_it_links = nodes[i].attached_links.begin(); it_it_links != find_node(i)->attached_links.end(); ++it_it_links)
@@ -1507,7 +1489,7 @@ const graph& graph::run_Glauber_dynamics_with_fields(const int &seed, const doub
         else
           sum += (*it_it_links)->weight * std::stoi((*it_it_links)->node1->label.name);
 
-      if( /*(1+tanh(sum/T))/2*/ 1/(1+exp(-2*sum/T)) > (rand()/RAND_MAX_DOUBLE) )
+      if( /*(1+tanh(sum/T))/2*/ 1/(1+exp(-2*sum/T)) > (rnd()/RAND_MAX_DOUBLE) )
         nodes[i].set_spin_to_plus1();
       else
         nodes[i].set_spin_to_minus1();
@@ -1653,7 +1635,7 @@ matrix<short> graph::spin_sequence_2D(const unsigned int &dim_y, const unsigned 
 }
 
 ////////// MULTIPARTITES BEGIN ////////////
-const graph& graph::construct_MCW_model(const col_vector<unsigned int>& Np, const matrix<double>& J, const col_vector<double>& F) {
+const graph& graph::construct_MCW_model(const col_vector<unsigned int>& Np, const matrix<double>& J, const col_vector<double>& F, prng &rnd) {
   if(J.get_dim_x() != J.get_dim_y()) {
     std::cerr << "----------------------------------------------------------------------------------\n"
               << "ERROR: Multipartite cannot be created. Reason:\n"
@@ -1694,10 +1676,9 @@ const graph& graph::construct_MCW_model(const col_vector<unsigned int>& Np, cons
   }
 
   ////////////// ADDING NODES TO THE GRAPH /////////////
-  srand(time(NULL));
   for(unsigned int i=0; i<Np.size(); ++i)
     for(unsigned int j=0; j<Np[i]; ++j)
-      add_node("PART"+std::to_string(i)+'_'+std::to_string(j), std::to_string(1-2*(rand()%2)) );;
+      add_node("PART"+std::to_string(i)+'_'+std::to_string(j), std::to_string(1-2*(rnd()%2)) );;
   
   ///////////////// LINKING THE GRAPH //////////////////
   col_vector<unsigned int> Bounds(Np.size()+1);
@@ -1885,14 +1866,13 @@ col_vector<double> graph::CW_components_average_magnetizations(col_vector<unsign
 ///////////////////// SPIN DYNAMICS END ///////////////////////////////////
 
 /////////////// RANDOM GRAPH GENERATORS BEGIN /////////////////////////////
-graph& graph::Metropolis_generator(double P(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly) {
-  srand(seed);
+graph& graph::Metropolis_generator(double P(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly) {
   matrix<bool> A(N_nodes), A_new(N_nodes);
   if(initialize_randomly) {
     //// Initialiasing adjacency matrix randomly ////
     for(unsigned int i=0; i<N_nodes; ++i)
       for(unsigned int j=0; j<i; ++j)
-        A[i][j] = A[j][i] = rand()%2;
+        A[i][j] = A[j][i] = rnd()%2;
     for(unsigned int i=0; i<N_nodes; ++i)
       A[i][i] = 0;
     A_new = A;
@@ -1904,11 +1884,11 @@ graph& graph::Metropolis_generator(double P(const matrix<bool>&), const unsigned
   unsigned int i,j;
   for(unsigned int n=0; n<N_iters; ++n) {
     do {
-      i = rand()%N_nodes;
-      j = rand()%N_nodes;
+      i = rnd()%N_nodes;
+      j = rnd()%N_nodes;
     } while(i==j);
     A_new[i][j] = A_new[j][i] = !A[i][j];
-    if(rand()/(double)RAND_MAX < P(A_new)/P(A))
+    if(rnd()/(double)RAND_MAX < P(A_new)/P(A))
       A[i][j] = A[j][i] = A_new[i][j];
     else
       A_new[i][j] = A_new[j][i] = A[i][j];
@@ -1920,15 +1900,14 @@ graph& graph::Metropolis_generator(double P(const matrix<bool>&), const unsigned
 }
 
 
-graph& graph::MF_Metropolis_generator(double P(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly) {
-  srand(seed);
+graph& graph::MF_Metropolis_generator(double P(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly) {
   //// Initialiasing adjacency matrix randomly ////
   matrix<bool> A(N_nodes);
   unsigned int L_old=0, L_new=0; //Numbers of links
   if(initialize_randomly) {
     for(unsigned int i=0; i<N_nodes; ++i)
       for(unsigned int j=0; j<i; ++j)
-        L_old += A[i][j] = A[j][i] = rand()%2;
+        L_old += A[i][j] = A[j][i] = rnd()%2;
     for(unsigned int i=0; i<N_nodes; ++i)
       A[i][i] = 0;
     L_new = L_old;
@@ -1942,15 +1921,15 @@ graph& graph::MF_Metropolis_generator(double P(const unsigned int&), const unsig
   unsigned int i,j;
   for(unsigned int n=0; n<N_iters; ++n) {
     do { 
-      i = rand()%N_nodes;
-      j = rand()%N_nodes;
+      i = rnd()%N_nodes;
+      j = rnd()%N_nodes;
     } while(i==j);
     if(A[i][j])
       --L_new;
     else
       ++L_new;
     
-    if(rand()/(double)RAND_MAX < P(L_new)/P(L_old)) {
+    if(rnd()/(double)RAND_MAX < P(L_new)/P(L_old)) {
       A[i][j] = A[j][i] = !A[i][j];
       L_old = L_new;
     }
@@ -1963,14 +1942,13 @@ graph& graph::MF_Metropolis_generator(double P(const unsigned int&), const unsig
   return *this;
 }
 
-graph& graph::GB_Metropolis_generator(double H(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly, const double &T) {
-  srand(seed);
+graph& graph::GB_Metropolis_generator(double H(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly, const double &T) {
   //// Initialiasing adjacency matrix randomly ////
   matrix<bool> A(N_nodes), A_new(N_nodes);
   if(initialize_randomly) {
     for(unsigned int i=0; i<N_nodes; ++i)
       for(unsigned int j=0; j<i; ++j)
-        A[i][j] = A[j][i] = rand()%2;
+        A[i][j] = A[j][i] = rnd()%2;
     for(unsigned int i=0; i<N_nodes; ++i)
       A[i][i] = 0;
     A_new = A;
@@ -1982,11 +1960,11 @@ graph& graph::GB_Metropolis_generator(double H(const matrix<bool>&), const unsig
   unsigned int i,j;
   for(unsigned int n=0; n<N_iters; ++n) {
     do {
-      i = rand()%N_nodes;
-      j = rand()%N_nodes;
+      i = rnd()%N_nodes;
+      j = rnd()%N_nodes;
     } while(i==j);
     A_new[i][j] = A_new[j][i] = !A[i][j];
-    if(rand()/(double)RAND_MAX < exp(1/T*(H(A)-H(A_new))))
+    if(rnd()/(double)RAND_MAX < exp(1/T*(H(A)-H(A_new))))
       A[i][j] = A[j][i] = A_new[i][j];
     else
       A_new[i][j] = A_new[j][i] = A[i][j];
@@ -1996,12 +1974,8 @@ graph& graph::GB_Metropolis_generator(double H(const matrix<bool>&), const unsig
   
   return *this;
 }
-graph& graph::MF_GB_Metropolis_generator(double H(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, const int &seed, const bool &initialize_randomly, const double &T) {
-  std::default_random_engine generator;
-  generator.seed(seed);
-  std::uniform_int_distribution<> distribution(0, RAND_MAX);
-  auto rnd = std::bind(distribution, generator);
 
+graph& graph::MF_GB_Metropolis_generator(double H(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly, const double &T) {
   matrix<bool> A(N_nodes);
   unsigned int L_old=0, L_new=0; //Numbers of links
   if(initialize_randomly) {
@@ -2042,14 +2016,9 @@ graph& graph::MF_GB_Metropolis_generator(double H(const unsigned int&), const un
 }
 
 graph& graph::sample_p_star_model(const unsigned int &N_iters, prng& rnd, const col_vector<double>& T, const unsigned int &N_pairs_max, const bool &initialize_randomly, const double &temp) {//Generates p-star model with parameters T. Note that the Hamiltonian here has the opposite sign to the one from the paper. Also we are using node::degree() function which is implemented through std::list<link>::size() function which should have O(1) time in C++11.
-  // std::default_random_engine generator;
-  // generator.seed(seed);
-  // std::uniform_int_distribution<> distribution(0, RAND_MAX);
-  // auto rnd = std::bind(distribution, generator);
-
   // Initializing the graph
   if(initialize_randomly)
-    set_ER_with_random_p(rnd());
+    set_ER_with_random_p(rnd);
 
   unsigned int p = T.size(); //p-star model
   col_vector<double> T_rescaled = T; //Rescaled parameters
@@ -2059,7 +2028,7 @@ graph& graph::sample_p_star_model(const unsigned int &N_iters, prng& rnd, const 
   // Running Metropolis dynamics
   for(unsigned int n=0; n<N_iters; ++n) {
     unsigned int N_pairs = rnd()%N_pairs_max + 1;
-    col_vector<node_pair> np = random_node_pairs_col_vector(N_pairs, rnd());
+    col_vector<node_pair> np = random_node_pairs_col_vector(N_pairs, rnd);
     double delta_H = 0;
     for(unsigned int i=0; i<N_pairs; ++i) {
       unsigned int k1=np[i].get_node1()->degree();
@@ -2082,14 +2051,9 @@ graph& graph::sample_p_star_model(const unsigned int &N_iters, prng& rnd, const 
 }
 
 graph& graph::sample_p_star_model_with_single_spin_Metropolis(const unsigned int &N_iters, prng& rnd, const col_vector<double>& T, const bool &initialize_randomly, const double &temp) {//Generates p-star model with parameters T.
-  // std::default_random_engine generator;
-  // generator.seed(seed);
-  // std::uniform_int_distribution<> distribution(0, RAND_MAX);
-  // auto rnd = std::bind(distribution, generator);
-
   // Initializing the graph
   if(initialize_randomly)
-    set_ER_with_random_p(rnd());
+    set_ER_with_random_p(rnd);
 
   // Obtaining initial degree sequences
   col_vector<unsigned int> k = degree_sequence_col_vec();
@@ -2132,15 +2096,10 @@ graph& graph::sample_p_star_model_with_single_spin_Metropolis(const unsigned int
   return *this;
 }
 
-unsigned int graph::count_p_star_model_iterations_until(bool stopping_condition(const graph&), const int &seed, const col_vector<double>& T, const unsigned int &N_pairs_max, const bool &initialize_randomly, const double &temp) {
-  std::default_random_engine generator;
-  generator.seed(seed);
-  std::uniform_int_distribution<> distribution(0, RAND_MAX);
-  auto rnd = std::bind(distribution, generator);
-
+unsigned int graph::count_p_star_model_iterations_until(bool stopping_condition(const graph&), prng& rnd, const col_vector<double>& T, const unsigned int &N_pairs_max, const bool &initialize_randomly, const double &temp) {
   // Initializing the graph
   if(initialize_randomly)
-    set_ER_with_random_p(rnd());
+    set_ER_with_random_p(rnd);
 
   unsigned int p = T.size(); //p-star model
   col_vector<double> T_rescaled = T; //Rescaled parameters
@@ -2151,7 +2110,7 @@ unsigned int graph::count_p_star_model_iterations_until(bool stopping_condition(
   unsigned long long N_iters = 0;
   while(!stopping_condition(*this)) {
     unsigned int N_pairs = rnd()%N_pairs_max + 1;
-    col_vector<node_pair> np = random_node_pairs_col_vector(N_pairs, rnd());
+    col_vector<node_pair> np = random_node_pairs_col_vector(N_pairs, rnd);
     double delta_H = 0;
     for(unsigned int i=0; i<N_pairs; ++i) {
       unsigned int k1=np[i].get_node1()->degree();

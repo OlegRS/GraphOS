@@ -95,12 +95,7 @@ void A_matrix::save(const std::string& file_name) const {
   ofs.close();
 }
 
-A_matrix& A_matrix::set_Erdos_Renyi(const double &p, const unsigned int &seed) {
-  std::default_random_engine generator;
-  generator.seed(seed);
-  std::uniform_int_distribution<> distribution(0, RAND_MAX);
-  auto rnd = std::bind(distribution, generator);
-  
+A_matrix& A_matrix::set_Erdos_Renyi(const double &p, prng &rnd) {  
   for(unsigned int i=0; i<dim_x; ++i)
     for(unsigned int j=0; j<i; ++j)
       rnd() < p*RAND_MAX ? array[dim_x*i+j]=array[dim_x*j+i]=true : array[dim_x * i + j]=array[dim_x*j+i]=false;
@@ -111,19 +106,13 @@ A_matrix& A_matrix::set_Erdos_Renyi(const double &p, const unsigned int &seed) {
   return *this;
 }
 
-col_vector<col_vector<unsigned int> > A_matrix::random_node_pairs_col_vector(const unsigned int &N_pairs, const int &seed) const {
+col_vector<col_vector<unsigned int> > A_matrix::random_node_pairs_col_vector(const unsigned int &N_pairs, prng &rnd) const {
   if(dim_x*(dim_x-1)/2 < N_pairs) {
     std::cerr << "------------------------------------------------------------------------------------------\n"
               << "ERROR: Attempt to obtain too many distinct pairs of nodes from a graph which is too small!\n"
               << "------------------------------------------------------------------------------------------\n";
     exit(1);
   }
-
-  std::default_random_engine generator;
-  generator.seed(seed);
-  std::uniform_int_distribution<> distribution(0, RAND_MAX);
-  auto rnd = std::bind(distribution, generator);
-
   col_vector<col_vector<unsigned int> > pairs(N_pairs);
   unsigned int i, j;
   for(unsigned int l=0; l<N_pairs; ++l) {
@@ -141,16 +130,15 @@ col_vector<col_vector<unsigned int> > A_matrix::random_node_pairs_col_vector(con
   return pairs;
 }
 
-A_matrix& A_matrix::GB_Metropolis_generator(double(&H)(const A_matrix&), const unsigned int &N_iters, const int &seed, const bool &initialize_randomly, const double &temp) {
-  srand(seed);
+A_matrix& A_matrix::GB_Metropolis_generator(double(&H)(const A_matrix&), const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly, const double &temp) {
   //// Initialiasing adjacency matrix ////
   A_matrix A_new(dim_x);
   if(initialize_randomly) {
     // Initialising Erdos-Renyi with random p
-    double p = rand();
+    double p = rnd();
     for(unsigned int i=0; i<dim_x; ++i)
       for(unsigned int j=0; j<i; ++j)
-        if(rand() < p)
+        if(rnd() < p)
           (*this)[i][j] = (*this)[j][i] = 1;
         else
           (*this)[i][j] = (*this)[j][i] = 0;
@@ -162,11 +150,11 @@ A_matrix& A_matrix::GB_Metropolis_generator(double(&H)(const A_matrix&), const u
   unsigned int i,j;
   for(unsigned int n=0; n<N_iters; ++n) {
     do {
-      i = rand()%dim_x;
-      j = rand()%dim_x;
+      i = rnd()%dim_x;
+      j = rnd()%dim_x;
     } while(i==j);
     A_new[i][j] = A_new[j][i] = !(*this)[i][j];
-    if(rand() < exp(1/temp*(H(*this)-H(A_new)))*RAND_MAX)
+    if(rnd() < exp(1/temp*(H(*this)-H(A_new)))*RAND_MAX)
       (*this)[i][j] = (*this)[j][i] = A_new[i][j];
     else
       A_new[i][j] = A_new[j][i] = (*this)[i][j];
@@ -175,13 +163,8 @@ A_matrix& A_matrix::GB_Metropolis_generator(double(&H)(const A_matrix&), const u
   return *this;
 }
 
-A_matrix& A_matrix::single_link_MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, const int &seed, const bool &initialize_randomly, const double &temp) {//Metropolis dynamics optimized for Hamiltonians that depend only on the number of links
+A_matrix& A_matrix::single_link_MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly, const double &temp) {//Metropolis dynamics optimized for Hamiltonians that depend only on the number of links
   //// Initialiasing adjacency matrix ////
-  std::default_random_engine generator;
-  generator.seed(seed);
-  std::uniform_int_distribution<> distribution(0, RAND_MAX);
-  auto rnd = std::bind(distribution, generator);
-
   A_matrix A_new(dim_x);
   unsigned int L = 0; //Number of links
   if(initialize_randomly) {
@@ -231,22 +214,17 @@ A_matrix& A_matrix::single_link_MF_GB_Metropolis_generator(double(&H)(const unsi
   return *this;
 }
 
-A_matrix& A_matrix::MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, const int &seed, const unsigned int &N_pairs_max, const bool &initialize_randomly, const double &temp) {//Metropolis dynamics optimized for Hamiltonians that depend only on the number of links
+A_matrix& A_matrix::MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, prng &rnd, const unsigned int &N_pairs_max, const bool &initialize_randomly, const double &temp) {//Metropolis dynamics optimized for Hamiltonians that depend only on the number of links
   //// Initialiasing adjacency matrix ////
-  std::default_random_engine generator;
-  generator.seed(seed);
-  std::uniform_int_distribution<> distribution(0, RAND_MAX);
-  auto rnd = std::bind(distribution, generator);
-
   if(initialize_randomly)
-    set_Erdos_Renyi(rnd()/(double)RAND_MAX, rnd());
+    set_Erdos_Renyi(rnd()/(double)RAND_MAX, rnd);
 
   //// Running Metropolis algorithm ////
   unsigned int L = num_links();
   unsigned int L_new = L;
   for(unsigned int n=0; n<N_iters; ++n) {
     unsigned int N_pairs = rnd()%N_pairs_max+1;
-    col_vector< col_vector<unsigned int> > pairs = random_node_pairs_col_vector(N_pairs, rnd());
+    col_vector< col_vector<unsigned int> > pairs = random_node_pairs_col_vector(N_pairs, rnd);
     for(unsigned int l=0; l<N_pairs; ++l)
       (*this)[pairs[l][0]][pairs[l][1]] ? --L_new : ++L_new;
 

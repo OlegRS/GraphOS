@@ -3,11 +3,11 @@
 
 #include "symm_matrix.hpp"
 #include "col_vector.hpp"
+#include "../randomisation/prng.hpp"
 #include <fstream>
 #include <math.h>
 #include <iostream>
 #include <string>
-#include <random>
 #include <functional>
 
 class A_matrix : public symm_matrix<bool> {//Adjacency matrix
@@ -26,13 +26,13 @@ class A_matrix : public symm_matrix<bool> {//Adjacency matrix
 
   void save(const std::string&) const;
 
-  A_matrix& set_Erdos_Renyi(const double &p, const unsigned int &seed);
+  A_matrix& set_Erdos_Renyi(const double &p, prng& rnd);
 
-  col_vector<col_vector<unsigned int> > random_node_pairs_col_vector(const unsigned int &N_pairs, const int &seed) const;
+  col_vector<col_vector<unsigned int> > random_node_pairs_col_vector(const unsigned int &N_pairs, prng& rnd) const;
 
-  A_matrix& GB_Metropolis_generator(double(&Hamiltonian)(const A_matrix&), const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
-  A_matrix& single_link_MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, const int &seed, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
-  A_matrix& MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, const int &seed, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
+  A_matrix& GB_Metropolis_generator(double(&Hamiltonian)(const A_matrix&), const unsigned int &N_iters, prng& rnd, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
+  A_matrix& single_link_MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, prng& rnd, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
+  A_matrix& MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, prng& rnd, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
   
   friend std::ostream& operator<<(std::ostream&, const A_matrix&);
 };
