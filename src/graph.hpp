@@ -91,12 +91,12 @@ public:
   const node& get_node(const std::string &node_name) const;
   const node& get_node(const unsigned int &node_id) const; //Returns a node with certain position in the array (id)
 
-  inline node_pair get_node_pair(unsigned int &id1, unsigned int &id2);
+  node_pair get_node_pair(unsigned int &id1, unsigned int &id2);
   node_pair random_node_pair(prng& rnd);
   col_vector<node_pair> random_node_pairs_col_vector(const unsigned int &N_pairs, prng& rnd); //Returns N random pairs of nodes
 
-  inline link* get_link(const unsigned int &node1_id, const unsigned int &node2_id) const;
-  inline link* get_link(const node *p_node1, const node *p_node2) const;
+  link* get_link(const unsigned int &node1_id, const unsigned int &node2_id) const;
+  link* get_link(const node *p_node1, const node *p_node2) const;
 
   bool is_simple() const; // Redundant! We already check to not add self-links!
   
@@ -116,6 +116,7 @@ public:
   
   graph& build_from_adjacency_matrix(const matrix<bool>& A); //Clears the graph and rebuilds with adjacency matrix A
 
+  graph& set_ER(const double& p, prng& rnd);
   graph& set_ER_with_random_p(prng& rnd);
 
   graph& clear_links();

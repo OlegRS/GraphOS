@@ -22,6 +22,8 @@ class A_matrix : public symm_matrix<bool> {//Adjacency matrix
 
   unsigned int size() const {return dim_x;};
   unsigned int num_links() const;
+  unsigned int degree(unsigned int& i) const;
+  col_vector<unsigned int> degree_sequence_col_vec() const;
   bool check_consistency() const;
 
   void save(const std::string&) const;
@@ -30,9 +32,11 @@ class A_matrix : public symm_matrix<bool> {//Adjacency matrix
 
   col_vector<col_vector<unsigned int> > random_node_pairs_col_vector(const unsigned int &N_pairs, prng& rnd) const;
 
-  A_matrix& GB_Metropolis_generator(double(&Hamiltonian)(const A_matrix&), const unsigned int &N_iters, prng& rnd, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
+  A_matrix& single_link_GB_Metropolis_generator(double(&Hamiltonian)(const A_matrix&), const unsigned int &N_iters, prng& rnd, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
   A_matrix& single_link_MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, prng& rnd, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
   A_matrix& MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, prng& rnd, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
+  A_matrix& sample_p_star_model(const unsigned int &N_iters, prng& rnd, const col_vector<double> &T, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1);
+  A_matrix& sample_p_star_model_with_single_link_Metropolis(const unsigned int &N_iters, prng& rnd, const col_vector<double> &T, const bool &initialize_randomly=true, const double &temp=1);
   
   friend std::ostream& operator<<(std::ostream&, const A_matrix&);
 };

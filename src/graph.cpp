@@ -449,6 +449,16 @@ graph& graph::build_from_adjacency_matrix(const matrix<bool>& A) {
   return *this;
 }
 
+graph& graph::set_ER(const double &p, prng &rnd) {
+  clear_links();
+  double P = p*rnd.rand_max();
+  for(unsigned int i=0; i<N_nodes; ++i)
+    for(unsigned int j=0; j<i; ++j)
+      if(rnd() < P)
+        add_link_no_checks(i,j);  
+  return *this;
+}
+
 graph& graph::set_ER_with_random_p(prng &rnd) {
   clear_links();
   double p = rnd();

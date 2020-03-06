@@ -2,6 +2,7 @@
 #include "col_vector.tpp"
 #include "matrix.tpp"
 #include "symm_matrix.tpp"
+#include "../aux_math.hpp"
 #include <math.h>
 #include <fstream>
 #include <functional>
@@ -55,6 +56,20 @@ unsigned int A_matrix::num_links() const {
   return N_links;
 }
 
+unsigned int A_matrix::degree(unsigned int& i) const {
+  unsigned int k=0;
+  for(unsigned j=0; j<dim_x; ++j)
+    k+=array[dim_x*i + j];
+  return k;
+}
+
+col_vector<unsigned int> A_matrix::degree_sequence_col_vec() const {
+  col_vector<unsigned int> deg_seq(dim_x);
+  for(unsigned int i=0; i<dim_x; ++i)
+    deg_seq[i] = degree(i);
+  return deg_seq;
+}
+
 bool A_matrix::check_consistency() const {
   //Check that matrix is square
   if(dim_x != dim_y) {
@@ -98,7 +113,7 @@ void A_matrix::save(const std::string& file_name) const {
 A_matrix& A_matrix::set_Erdos_Renyi(const double &p, prng &rnd) {  
   for(unsigned int i=0; i<dim_x; ++i)
     for(unsigned int j=0; j<i; ++j)
-      rnd() < p*RAND_MAX ? array[dim_x*i+j]=array[dim_x*j+i]=true : array[dim_x * i + j]=array[dim_x*j+i]=false;
+      rnd() < p*RAND_MAX ? array[dim_x*i+j]=array[dim_x*j+i]=true : array[dim_x*i+j]=array[dim_x*j+i]=false;
 
   for(unsigned int i=0; i<dim_x; ++i)
     array[dim_x * i + i] = false;
@@ -130,7 +145,7 @@ col_vector<col_vector<unsigned int> > A_matrix::random_node_pairs_col_vector(con
   return pairs;
 }
 
-A_matrix& A_matrix::GB_Metropolis_generator(double(&H)(const A_matrix&), const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly, const double &temp) {
+A_matrix& A_matrix::single_link_GB_Metropolis_generator(double(&H)(const A_matrix&), const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly, const double &temp) {
   //// Initialiasing adjacency matrix ////
   A_matrix A_new(dim_x);
   if(initialize_randomly) {
@@ -241,6 +256,94 @@ A_matrix& A_matrix::MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_
       L_new  = L;
   }
          
+  return *this;
+}
+
+A_matrix& A_matrix::sample_p_star_model(const unsigned int &N_iters, prng& rnd, const col_vector<double> &T, const unsigned int &N_pairs_max, const bool &initialize_randomly, const double &temp) {
+  unsigned int rand_max = rnd.rand_max();
+  if(initialize_randomly)
+    set_Erdos_Renyi(rnd()/rand_max, rnd);
+
+  unsigned int p = T.size(); //p-star model
+  col_vector<double> T_rescaled = T; //Rescaled parameters
+  for(unsigned int s=0; s<p; ++s)
+    T_rescaled[s] = T[s]/pow(dim_x, s); //(s+1)! is already accounted for in the number of stars
+
+  // Running Metropolis dynamics
+  for(unsigned int n=0; n<N_iters; ++n) {
+    unsigned int N_pairs = rnd()%N_pairs_max + 1;
+    col_vector<col_vector<unsigned int>  > np = random_node_pairs_col_vector(N_pairs, rnd);
+    double delta_H = 0;
+    for(unsigned int i=0; i<N_pairs; ++i) {
+      unsigned int k1=degree(np[i][0]);
+      unsigned int k2=degree(np[i][1]);
+      if((*this)[np[i][0]][np[i][1]]) { // If there is a link, remove it
+        (*this)[np[i][0]][np[i][1]] = (*this)[np[i][1]][np[i][0]] = 0;
+        for(unsigned int s=1; s<=p; ++s)
+          delta_H += T_rescaled[s-1]*s*(aux_math::binom(k1,s)/k1 + aux_math::binom(k2,s)/k2); // C_n^k - C_(n-1)^k = k/n*C_n^k
+      }
+      else { // If there is no link, add it
+        (*this)[np[i][0]][np[i][1]] = (*this)[np[i][1]][np[i][0]] = 1;
+        for(unsigned int s=1; s<=p; ++s)
+          delta_H -= T_rescaled[s-1]*s*(aux_math::binom(k1+1,s)/(k1+1) + aux_math::binom(k2+1,s)/(k2+1));
+      }   
+    }
+
+    if(rnd() > exp(-1/temp*delta_H)*rand_max)
+      //Reject the proposal and return everything to how it was by flipping link states again
+      for(unsigned int i=0; i<N_pairs; ++i) {
+        if((*this)[np[i][0]][np[i][1]]) // If there is a link, remove it
+          (*this)[np[i][0]][np[i][1]] = (*this)[np[i][1]][np[i][0]] = 0;
+        else
+          (*this)[np[i][0]][np[i][1]] = (*this)[np[i][1]][np[i][0]] = 1;
+      }
+  }
+  return *this;
+}
+
+A_matrix& A_matrix::sample_p_star_model_with_single_link_Metropolis(const unsigned int &N_iters, prng& rnd, const col_vector<double> &T, const bool &initialize_randomly, const double &temp) {
+  unsigned int rand_max = rnd.rand_max();
+  if(initialize_randomly)
+    set_Erdos_Renyi(rnd()/rand_max, rnd);
+
+  // Obtaining initial degree sequences
+  col_vector<unsigned int> k = degree_sequence_col_vec();
+  // Counting initial numbers of stars
+  unsigned int p = T.size();
+  
+  // Evaluating initial Hamiltonian (which is -H of the one from the paper)
+  col_vector<double> T_rescaled = T; //Rescaled parameters
+  for(unsigned int s=0; s<p; ++s)
+    T_rescaled[s] = T[s]/pow(dim_x, s); //(s+1)! is already accounted for in the number of stars
+
+  // Running Metropolis dynamics
+  unsigned int i,j;
+  for(unsigned int n=0; n<N_iters; ++n) {
+    double delta_H=0;
+    do {
+      i = rnd()%dim_x;
+      j = rnd()%dim_x;
+    } while(i==j);
+    
+    if((*this)[i][j]) { //If there is a link, propose to remove it
+      for(unsigned int s=1; s<=p; ++s)
+        delta_H += T_rescaled[s-1]*s*(aux_math::binom(k[i],s)/k[i] + aux_math::binom(k[j],s)/k[j]); // C_n^k - C_(n-1)^k = k/n*C_n^k
+
+      if(rnd() < exp(-1/temp*delta_H)*RAND_MAX) {
+        (*this)[i][j] = (*this)[j][i] = 0;
+        --k[i]; --k[j];
+      }
+    } 
+    else { //If there is a link, propose to add it
+      for(unsigned int s=1; s<=p; ++s)
+        delta_H -= T_rescaled[s-1]*s*(aux_math::binom(k[i]+1,s)/(k[i]+1) + aux_math::binom(k[j]+1,s)/(k[j]+1)); // C_n^k - C_(n-1)^k = k/n*C_n^k
+
+      if(rnd() < exp(-1/temp*delta_H)*RAND_MAX) {
+        (*this)[i][j] = (*this)[j][i] = 1;
+        ++k[i]; ++k[j];
+      }
+    }
+  }
   return *this;
 }
 
