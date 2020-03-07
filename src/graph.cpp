@@ -1442,7 +1442,7 @@ const graph& graph::run_Glauber_dynamics_no_fields(prng &rnd, const double &T, c
   };
 
   ////////////// SIMULATING DYNAMICS ////////////////
-  double RAND_MAX_DOUBLE = double(RAND_MAX);
+  double rand_max = double(rnd.rand_max());
   
   for(unsigned int l=0; l<N_steps; ++l) {
     unsigned int i = rnd()%N_nodes;
@@ -1454,7 +1454,7 @@ const graph& graph::run_Glauber_dynamics_no_fields(prng &rnd, const double &T, c
       else
         sum += (*it_it_links)->weight * std::stoi((*it_it_links)->node1->label.name);
 
-    if( /*(1+tanh(sum/T))/2*/ 1/(1+exp(-2*sum/T)) > (rnd()/RAND_MAX_DOUBLE) )
+    if( /*(1+tanh(sum/T))/2*/ 1/(1+exp(-2*sum/T)) > (rnd()/rand_max) )
       nodes[i].set_spin_to_plus1();
     else
       nodes[i].set_spin_to_minus1();
@@ -1487,7 +1487,7 @@ const graph& graph::run_Glauber_dynamics_with_fields(prng &rnd, const double &T,
   };
 
   ////////////// SIMULATING DYNAMICS ////////////////
-  double RAND_MAX_DOUBLE = double(RAND_MAX);
+  double rand_max = double(rnd.rand_max());
 
   for(unsigned int l=0; l<N_steps; ++l) {
     unsigned int i = rnd()%N_nodes; // Picking a node at random
@@ -1499,7 +1499,7 @@ const graph& graph::run_Glauber_dynamics_with_fields(prng &rnd, const double &T,
         else
           sum += (*it_it_links)->weight * std::stoi((*it_it_links)->node1->label.name);
 
-      if( /*(1+tanh(sum/T))/2*/ 1/(1+exp(-2*sum/T)) > (rnd()/RAND_MAX_DOUBLE) )
+      if( /*(1+tanh(sum/T))/2*/ 1/(1+exp(-2*sum/T)) > (rnd()/rand_max) )
         nodes[i].set_spin_to_plus1();
       else
         nodes[i].set_spin_to_minus1();
@@ -1877,6 +1877,7 @@ col_vector<double> graph::CW_components_average_magnetizations(col_vector<unsign
 
 /////////////// RANDOM GRAPH GENERATORS BEGIN /////////////////////////////
 graph& graph::Metropolis_generator(double P(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly) {
+  double rand_max = rnd.rand_max();
   matrix<bool> A(N_nodes), A_new(N_nodes);
   if(initialize_randomly) {
     //// Initialiasing adjacency matrix randomly ////
@@ -1898,7 +1899,7 @@ graph& graph::Metropolis_generator(double P(const matrix<bool>&), const unsigned
       j = rnd()%N_nodes;
     } while(i==j);
     A_new[i][j] = A_new[j][i] = !A[i][j];
-    if(rnd()/(double)RAND_MAX < P(A_new)/P(A))
+    if(rnd()/rand_max < P(A_new)/P(A))
       A[i][j] = A[j][i] = A_new[i][j];
     else
       A_new[i][j] = A_new[j][i] = A[i][j];
@@ -1912,6 +1913,7 @@ graph& graph::Metropolis_generator(double P(const matrix<bool>&), const unsigned
 
 graph& graph::MF_Metropolis_generator(double P(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly) {
   //// Initialiasing adjacency matrix randomly ////
+  double rand_max = rnd.rand_max();
   matrix<bool> A(N_nodes);
   unsigned int L_old=0, L_new=0; //Numbers of links
   if(initialize_randomly) {
@@ -1939,7 +1941,7 @@ graph& graph::MF_Metropolis_generator(double P(const unsigned int&), const unsig
     else
       ++L_new;
     
-    if(rnd()/(double)RAND_MAX < P(L_new)/P(L_old)) {
+    if(rnd()/rand_max < P(L_new)/P(L_old)) {
       A[i][j] = A[j][i] = !A[i][j];
       L_old = L_new;
     }
@@ -1953,6 +1955,7 @@ graph& graph::MF_Metropolis_generator(double P(const unsigned int&), const unsig
 }
 
 graph& graph::GB_Metropolis_generator(double H(const matrix<bool>&), const unsigned int &N_nodes, const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly, const double &T) {
+  double rand_max = rnd.rand_max();
   //// Initialiasing adjacency matrix randomly ////
   matrix<bool> A(N_nodes), A_new(N_nodes);
   if(initialize_randomly) {
@@ -1974,7 +1977,7 @@ graph& graph::GB_Metropolis_generator(double H(const matrix<bool>&), const unsig
       j = rnd()%N_nodes;
     } while(i==j);
     A_new[i][j] = A_new[j][i] = !A[i][j];
-    if(rnd()/(double)RAND_MAX < exp(1/T*(H(A)-H(A_new))))
+    if(rnd()/rand_max < exp(1/T*(H(A)-H(A_new))))
       A[i][j] = A[j][i] = A_new[i][j];
     else
       A_new[i][j] = A_new[j][i] = A[i][j];
@@ -1986,6 +1989,7 @@ graph& graph::GB_Metropolis_generator(double H(const matrix<bool>&), const unsig
 }
 
 graph& graph::MF_GB_Metropolis_generator(double H(const unsigned int&), const unsigned int &N_nodes, const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly, const double &T) {
+  double rand_max = rnd.rand_max();
   matrix<bool> A(N_nodes);
   unsigned int L_old=0, L_new=0; //Numbers of links
   if(initialize_randomly) {
@@ -2013,7 +2017,7 @@ graph& graph::MF_GB_Metropolis_generator(double H(const unsigned int&), const un
     else
       ++L_new;
     
-    if(rnd()/(double)RAND_MAX < exp(1/T*(H(L_old)-H(L_new)))) {
+    if(rnd()/rand_max < exp(1/T*(H(L_old)-H(L_new)))) {
       A[i][j] = A[j][i] = !A[i][j];
       L_old = L_new;
     }
@@ -2027,6 +2031,7 @@ graph& graph::MF_GB_Metropolis_generator(double H(const unsigned int&), const un
 
 graph& graph::sample_p_star_model(const unsigned int &N_iters, prng& rnd, const col_vector<double>& T, const unsigned int &N_pairs_max, const bool &initialize_randomly, const double &temp) {//Generates p-star model with parameters T. Note that the Hamiltonian here has the opposite sign to the one from the paper. Also we are using node::degree() function which is implemented through std::list<link>::size() function which should have O(1) time in C++11.
   // Initializing the graph
+  unsigned int rand_max = rnd.rand_max();
   if(initialize_randomly)
     set_ER_with_random_p(rnd);
 
@@ -2052,7 +2057,7 @@ graph& graph::sample_p_star_model(const unsigned int &N_iters, prng& rnd, const 
       np[i].flip_link_state();
     }
 
-    if(rnd() > exp(-1/temp*delta_H)*RAND_MAX)
+    if(rnd() > exp(-1/temp*delta_H)*rand_max)
       //Reject the proposal and return everything to how it was by flipping link states again
       for(unsigned int i=0; i<N_pairs; ++i)
         np[i].flip_link_state();
@@ -2062,15 +2067,14 @@ graph& graph::sample_p_star_model(const unsigned int &N_iters, prng& rnd, const 
 
 graph& graph::sample_p_star_model_with_single_spin_Metropolis(const unsigned int &N_iters, prng& rnd, const col_vector<double>& T, const bool &initialize_randomly, const double &temp) {//Generates p-star model with parameters T.
   // Initializing the graph
+  unsigned int rand_max = rnd.rand_max();
   if(initialize_randomly)
     set_ER_with_random_p(rnd);
 
   // Obtaining initial degree sequences
   col_vector<unsigned int> k = degree_sequence_col_vec();
-  // Counting initial numbers of stars
   unsigned int p = T.size();
-  
-  // Evaluating initial Hamiltonian (which is -H of the one from the paper)
+
   col_vector<double> T_rescaled = T; //Rescaled parameters
   for(unsigned int s=0; s<p; ++s)
     T_rescaled[s] = T[s]/pow(N_nodes,s); //(s+1)! is already accounted for in the number of stars
@@ -2078,17 +2082,18 @@ graph& graph::sample_p_star_model_with_single_spin_Metropolis(const unsigned int
   // Running Metropolis dynamics
   unsigned int i,j;
   for(unsigned int n=0; n<N_iters; ++n) {
-    double delta_H=0;
     do {
       i = rnd()%N_nodes;
       j = rnd()%N_nodes;
     } while(i==j);
+    
     link *l = get_link(i,j);
+    double delta_H=0;
     if(l) { //If there is a link, propose to remove it
       for(unsigned int s=1; s<=p; ++s)
         delta_H += T_rescaled[s-1]*s*(aux_math::binom(k[i],s)/k[i] + aux_math::binom(k[j],s)/k[j]); // C_n^k - C_(n-1)^k = k/n*C_n^k
 
-      if(rnd() < exp(-1/temp*delta_H)*RAND_MAX) {
+      if(rnd() < exp(-1/temp*delta_H)*rand_max) {
         remove_link(nodes+i, nodes+j); //Inefficient given that we already have a poiner to the link
         --k[i]; --k[j];
       }
@@ -2097,7 +2102,7 @@ graph& graph::sample_p_star_model_with_single_spin_Metropolis(const unsigned int
       for(unsigned int s=1; s<=p; ++s)
         delta_H -= T_rescaled[s-1]*s*(aux_math::binom(k[i]+1,s)/(k[i]+1) + aux_math::binom(k[j]+1,s)/(k[j]+1)); // C_n^k - C_(n-1)^k = k/n*C_n^k
 
-      if(rnd() < exp(-1/temp*delta_H)*RAND_MAX) {
+      if(rnd() < exp(-1/temp*delta_H)*rand_max) {
         add_link_no_checks(i, j);
         ++k[i]; ++k[j];
       }

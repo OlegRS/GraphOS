@@ -56,7 +56,7 @@ unsigned int A_matrix::num_links() const {
   return N_links;
 }
 
-unsigned int A_matrix::degree(unsigned int& i) const {
+unsigned int A_matrix::degree(const unsigned int& i) const {
   unsigned int k=0;
   for(unsigned j=0; j<dim_x; ++j)
     k+=array[dim_x*i + j];
@@ -110,10 +110,11 @@ void A_matrix::save(const std::string& file_name) const {
   ofs.close();
 }
 
-A_matrix& A_matrix::set_Erdos_Renyi(const double &p, prng &rnd) {  
+A_matrix& A_matrix::set_Erdos_Renyi(const double &p, prng &rnd) {
+  unsigned int rand_max = rnd.rand_max();
   for(unsigned int i=0; i<dim_x; ++i)
     for(unsigned int j=0; j<i; ++j)
-      rnd() < p*RAND_MAX ? array[dim_x*i+j]=array[dim_x*j+i]=true : array[dim_x*i+j]=array[dim_x*j+i]=false;
+      rnd() < p*rand_max ? array[dim_x*i+j]=array[dim_x*j+i]=true : array[dim_x*i+j]=array[dim_x*j+i]=false;
 
   for(unsigned int i=0; i<dim_x; ++i)
     array[dim_x * i + i] = false;
@@ -147,6 +148,7 @@ col_vector<col_vector<unsigned int> > A_matrix::random_node_pairs_col_vector(con
 
 A_matrix& A_matrix::single_link_GB_Metropolis_generator(double(&H)(const A_matrix&), const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly, const double &temp) {
   //// Initialiasing adjacency matrix ////
+  unsigned int rand_max = rnd.rand_max();
   A_matrix A_new(dim_x);
   if(initialize_randomly) {
     // Initialising Erdos-Renyi with random p
@@ -169,7 +171,7 @@ A_matrix& A_matrix::single_link_GB_Metropolis_generator(double(&H)(const A_matri
       j = rnd()%dim_x;
     } while(i==j);
     A_new[i][j] = A_new[j][i] = !(*this)[i][j];
-    if(rnd() < exp(1/temp*(H(*this)-H(A_new)))*RAND_MAX)
+    if(rnd() < exp(1/temp*(H(*this)-H(A_new)))*rand_max)
       (*this)[i][j] = (*this)[j][i] = A_new[i][j];
     else
       A_new[i][j] = A_new[j][i] = (*this)[i][j];
@@ -179,6 +181,7 @@ A_matrix& A_matrix::single_link_GB_Metropolis_generator(double(&H)(const A_matri
 }
 
 A_matrix& A_matrix::single_link_MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, prng &rnd, const bool &initialize_randomly, const double &temp) {//Metropolis dynamics optimized for Hamiltonians that depend only on the number of links
+  unsigned int rand_max = rnd.rand_max();
   //// Initialiasing adjacency matrix ////
   A_matrix A_new(dim_x);
   unsigned int L = 0; //Number of links
@@ -210,14 +213,14 @@ A_matrix& A_matrix::single_link_MF_GB_Metropolis_generator(double(&H)(const unsi
     } while(i==j);
     A_new[i][j] = A_new[j][i] = !(*this)[i][j];
     if((*this)[i][j] == 0)
-      if(rnd()/(double)RAND_MAX < exp(1/temp*(H(L)-H(L+1)))) {
+      if(rnd()/(double)rand_max < exp(1/temp*(H(L)-H(L+1)))) {
         (*this)[i][j] = (*this)[j][i] = A_new[i][j];
         L++;
       }
       else
         A_new[i][j] = A_new[j][i] = (*this)[i][j];
     else
-      if(rnd()/(double)RAND_MAX < exp(1/temp*(H(L)-H(L-1)))) {
+      if(rnd()/(double)rand_max < exp(1/temp*(H(L)-H(L-1)))) {
         (*this)[i][j] = (*this)[j][i] = A_new[i][j];
         L--;
       }
@@ -308,10 +311,8 @@ A_matrix& A_matrix::sample_p_star_model_with_single_link_Metropolis(const unsign
 
   // Obtaining initial degree sequences
   col_vector<unsigned int> k = degree_sequence_col_vec();
-  // Counting initial numbers of stars
   unsigned int p = T.size();
-  
-  // Evaluating initial Hamiltonian (which is -H of the one from the paper)
+
   col_vector<double> T_rescaled = T; //Rescaled parameters
   for(unsigned int s=0; s<p; ++s)
     T_rescaled[s] = T[s]/pow(dim_x, s); //(s+1)! is already accounted for in the number of stars
@@ -319,17 +320,17 @@ A_matrix& A_matrix::sample_p_star_model_with_single_link_Metropolis(const unsign
   // Running Metropolis dynamics
   unsigned int i,j;
   for(unsigned int n=0; n<N_iters; ++n) {
-    double delta_H=0;
     do {
       i = rnd()%dim_x;
       j = rnd()%dim_x;
     } while(i==j);
     
+    double delta_H=0;
     if((*this)[i][j]) { //If there is a link, propose to remove it
       for(unsigned int s=1; s<=p; ++s)
         delta_H += T_rescaled[s-1]*s*(aux_math::binom(k[i],s)/k[i] + aux_math::binom(k[j],s)/k[j]); // C_n^k - C_(n-1)^k = k/n*C_n^k
 
-      if(rnd() < exp(-1/temp*delta_H)*RAND_MAX) {
+      if(rnd() < exp(-1/temp*delta_H)*rand_max) {
         (*this)[i][j] = (*this)[j][i] = 0;
         --k[i]; --k[j];
       }
@@ -338,7 +339,7 @@ A_matrix& A_matrix::sample_p_star_model_with_single_link_Metropolis(const unsign
       for(unsigned int s=1; s<=p; ++s)
         delta_H -= T_rescaled[s-1]*s*(aux_math::binom(k[i]+1,s)/(k[i]+1) + aux_math::binom(k[j]+1,s)/(k[j]+1)); // C_n^k - C_(n-1)^k = k/n*C_n^k
 
-      if(rnd() < exp(-1/temp*delta_H)*RAND_MAX) {
+      if(rnd() < exp(-1/temp*delta_H)*rand_max) {
         (*this)[i][j] = (*this)[j][i] = 1;
         ++k[i]; ++k[j];
       }

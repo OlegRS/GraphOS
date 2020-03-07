@@ -22,7 +22,7 @@ class A_matrix : public symm_matrix<bool> {//Adjacency matrix
 
   unsigned int size() const {return dim_x;};
   unsigned int num_links() const;
-  unsigned int degree(unsigned int& i) const;
+  unsigned int degree(const unsigned int& i) const;
   col_vector<unsigned int> degree_sequence_col_vec() const;
   bool check_consistency() const;
 
