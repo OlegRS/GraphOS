@@ -2098,7 +2098,7 @@ graph& graph::sample_p_star_model_with_single_spin_Metropolis(const unsigned int
         --k[i]; --k[j];
       }
     } 
-    else { //If there is a link, propose to add it
+    else { //If there is no link, propose to add it
       for(unsigned int s=1; s<=p; ++s)
         delta_H -= T_rescaled[s-1]*s*(aux_math::binom(k[i]+1,s)/(k[i]+1) + aux_math::binom(k[j]+1,s)/(k[j]+1)); // C_n^k - C_(n-1)^k = k/n*C_n^k
 
