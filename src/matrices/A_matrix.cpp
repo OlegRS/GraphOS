@@ -67,6 +67,25 @@ col_vector<unsigned int> A_matrix::degree_sequence_col_vec() const {
   return deg_seq;
 }
 
+unsigned long long A_matrix::num_p_stars(const unsigned int& i, const unsigned int& p) const {
+  return aux_math::binom(degree(i), p);
+}
+
+col_vector<unsigned long long> A_matrix::num_p_stars_sequence_col_vec(const unsigned int& p) const {
+  col_vector<unsigned long long> p_stars_sequence(dim_x);
+  for(unsigned int i=0; i<dim_x; ++i)
+    p_stars_sequence[i] = num_p_stars(i, p);
+  return p_stars_sequence;
+}
+
+double A_matrix::average_p_stars(const unsigned int& p) const {
+  double s = 0;
+  for(unsigned int i=0; i<dim_x; ++i)
+    s+=num_p_stars(i, p);
+  return s/dim_x;
+}
+
+
 bool A_matrix::check_consistency() const {
   //Check that matrix is square
   if(dim_x != dim_y) {

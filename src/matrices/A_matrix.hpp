@@ -24,6 +24,9 @@ class A_matrix : public symm_matrix<bool> {//Adjacency matrix
   unsigned int num_links() const;
   unsigned int degree(const unsigned int& i) const;
   col_vector<unsigned int> degree_sequence_col_vec() const;
+  unsigned long long num_p_stars(const unsigned int& i, const unsigned int& p) const;
+  col_vector<unsigned long long> num_p_stars_sequence_col_vec(const unsigned int& p) const;
+  double average_p_stars(const unsigned int& p) const;
   bool check_consistency() const;
 
   void save(const std::string&) const;
