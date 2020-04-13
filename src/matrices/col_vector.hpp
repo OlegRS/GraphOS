@@ -13,6 +13,8 @@ public:
 
   unsigned int size() const;
 
+  T avrg() const;
+
   T& operator[](const unsigned int&) const;
 };
 

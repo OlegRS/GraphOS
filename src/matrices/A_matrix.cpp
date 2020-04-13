@@ -366,6 +366,64 @@ A_matrix& A_matrix::sample_p_star_model_with_single_link_Metropolis(const unsign
   return *this;
 }
 
+A_matrix& A_matrix::sample_triad_model_with_single_link_Metropolis(const unsigned int &N_iters, prng& rnd, const double h, const double sigma, const double tau, const bool &initialize_randomly, const double &temp) {
+  unsigned int rand_max = rnd.rand_max();
+  
+  if(initialize_randomly)
+    set_Erdos_Renyi(rnd()/rand_max, rnd);
+
+  double h_rescaled = 2*h;
+  double sigma_rescaled = 2*sigma/dim_x;
+  double tau_rescaled = 6*tau/dim_x;
+  
+  // Obtaining initial degree sequences
+  col_vector<unsigned int> k = degree_sequence_col_vec();
+
+  // Running Metropolis dynamics
+  unsigned int i,j;
+  for(unsigned int n=0; n<N_iters; ++n) {
+    do {
+      i = rnd()%dim_x;
+      j = rnd()%dim_x;
+    } while(i==j);
+    
+    double delta_H=0;
+    if((*this)[i][j]) { // If there is a link, propose to remove it
+      delta_H += h_rescaled; // Field contribution 
+      delta_H += sigma_rescaled*2*(aux_math::binom(k[i],2)/k[i] + aux_math::binom(k[j],2)/k[j]); // 2-star contribution (C_n^k - C_(n-1)^k = k/n*C_n^k)
+      // Triangles contribution
+      unsigned long long N_t = 0; // Number of triangles containing an edge (i,j)
+      for(unsigned int k=0; k<dim_x; ++k)
+        if((*this)[i][k] && (*this)[j][k])
+          ++N_t;
+      delta_H += tau_rescaled * N_t;
+
+      if(rnd() < exp(-1/temp*delta_H)*rand_max) {
+        (*this)[i][j] = (*this)[j][i] = 0;
+        --k[i]; --k[j];
+      }
+    } 
+    else { //If there is no link, propose to add it
+        delta_H -= h_rescaled; // Field contribution 
+        delta_H -= sigma_rescaled*2*(aux_math::binom(k[i]+1,2)/(k[i]+1) + aux_math::binom(k[j]+1,2)/(k[j]+1)); // 2-star contribution (C_n^k - C_(n-1)^k = k/n*C_n^k)
+        // Triangles contribution
+        unsigned long long N_t = 0; // Number of triangles containing an edge (i,j)
+        for(unsigned int k=0; k<dim_x; ++k)
+          if((*this)[i][k] && (*this)[j][k])
+            ++N_t;
+        delta_H -= tau_rescaled * N_t;
+
+      if(rnd() < exp(-1/temp*delta_H)*rand_max) {
+        (*this)[i][j] = (*this)[j][i] = 1;
+        ++k[i]; ++k[j];
+      }
+    }
+  }
+
+  
+  return *this;
+}
+
 std::ostream& operator<<(std::ostream& os, const A_matrix& A) {
   for(unsigned int i=0; i<A.dim_y; i++) {
     for(unsigned int j=0; j < A.dim_x-1; j++)

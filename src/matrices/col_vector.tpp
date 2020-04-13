@@ -17,6 +17,13 @@ template <typename T> unsigned int col_vector<T>::size() const {
   return matrix<T>::dim_y;
 }
 
+template <typename T> T col_vector<T>::avrg() const {
+  T avrg = 0;
+  for(unsigned int i=0; i<matrix<T>::dim_y; ++i)
+    avrg += matrix<T>::array[i];
+  return avrg/(double)matrix<T>::dim_y;
+}
+
 template <typename T> T& col_vector<T>::operator[](const unsigned int &i) const {
   return matrix<T>::array[i];
 }

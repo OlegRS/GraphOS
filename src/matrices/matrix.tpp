@@ -1,3 +1,6 @@
+#ifndef __MATRIX_TPP__
+#define __MATRIX_TPP__
+
 template <typename T> matrix<T>::matrix() : dim_x(0), dim_y(0), array(NULL) {}
 template <typename T> matrix<T>::matrix(const matrix<T> &M) : dim_x(M.dim_x), dim_y(M.dim_y) {
   unsigned int sz = dim_x * dim_y;
@@ -443,3 +446,5 @@ template <typename T> std::ostream& operator<<(std::ostream &os, const matrix<T>
   M.print(os);
   return os;
 }
+
+#endif

@@ -40,6 +40,7 @@ class A_matrix : public symm_matrix<bool> {//Adjacency matrix
   A_matrix& MF_GB_Metropolis_generator(double(&H)(const unsigned int& N_links), const unsigned int &N_iters, prng& rnd, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1); //Generates random graph from the ensemble defined by Gibbs-Boltzmann distribution, which Hamiltonian is passed as a function of the adjacency matrix.
   A_matrix& sample_p_star_model(const unsigned int &N_iters, prng& rnd, const col_vector<double> &T, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1);
   A_matrix& sample_p_star_model_with_single_link_Metropolis(const unsigned int &N_iters, prng& rnd, const col_vector<double> &T, const bool &initialize_randomly=true, const double &temp=1);
+  A_matrix& sample_triad_model_with_single_link_Metropolis(const unsigned int &N_iters, prng& rnd, const double h, const double sigma, const double tau, const bool &initialize_randomly=true, const double &temp=1);
   
   friend std::ostream& operator<<(std::ostream&, const A_matrix&);
 };
