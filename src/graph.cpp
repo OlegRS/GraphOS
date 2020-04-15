@@ -35,7 +35,7 @@ graph::graph(const graph& gr) : NODES_ARRAY_SIZE(gr.NODES_ARRAY_SIZE), N_nodes(g
 
 //////////////////////////////////////////////////////////////////
 
-graph::graph(const std::string &graph_file, unsigned int N_additional_nodes) {
+graph::graph(const std::string &graph_file, const unsigned int& N_additional_nodes) {
 #ifndef SILENT_MODE
   std::cerr << "***Loading the graph from \".graph\" file...\n";
 #endif
@@ -401,6 +401,162 @@ graph& graph::load(const std::string &graph_file, unsigned int N_additional_node
   return *this;
 }
 
+graph& graph::load_from_sif(const std::string& sif_file_name, unsigned int N_additional_nodes) {
+  clear();
+  std::ifstream ifs_sif(sif_file_name);
+  std::string name1;
+  std::string name2;
+  std::string link_type;
+  std::list<std::string> name1s;
+  std::list<std::string> name2s;
+  std::list<std::string> link_types;
+
+  while(!ifs_sif.eof()) {
+    ifs_sif >> name1 >> link_type >> name2;
+    if(name1!="")
+      name1s.push_back(name1);
+    if(name2!="")
+      name2s.push_back(name2);
+    if(link_type!="")
+      link_types.push_back(link_type);
+  }
+
+  if(name1s.size()!=name2s.size() || name1s.size()!=link_types.size()) {
+      std::cerr << "------------------------------------------------\n"
+                << "ERROR: .sif file is inconsistent! \n"
+                << "------------------------------------------------\n";
+      exit(1);
+  }
+  
+  std::list<std::string> all_node_names = name1s;
+  std::list<std::string> name2s_ = name2s;
+  all_node_names.merge(name2s_);
+  all_node_names.sort();
+  all_node_names.unique();
+
+  N_nodes = all_node_names.size();
+  NODES_ARRAY_SIZE = N_nodes + N_additional_nodes;
+  
+  nodes = new node[NODES_ARRAY_SIZE];
+
+  unsigned int i=0;
+  for(std::list<std::string>::iterator it_all_node_names=all_node_names.begin(); it_all_node_names!=all_node_names.end(); ++it_all_node_names)
+    nodes[i++] = node(*it_all_node_names);
+
+  // Linking the graph
+  std::list<std::string>::iterator it_name1s=name1s.begin();
+  std::list<std::string>::iterator it_name2s=name2s.begin();
+  std::list<std::string>::iterator it_link_types=link_types.begin();
+  while(it_name1s!=name1s.end())
+    add_link(*it_name1s++, *it_name2s++, *it_link_types++);
+ 
+  return *this;
+}
+
+
+graph& graph::load_from_sif_and_attrs(const std::string& sif_file_name, const std::string& attrs_file_name, const unsigned int& N_additional_nodes) {
+  std::cout << "Loading the graph from .sif and .attrs...\n";
+  clear();
+  // Working with .attrs file as it may contain more nodes (possible disconnected nodes)
+  load_from_sif(sif_file_name, N_additional_nodes);
+  std::ifstream ifs_attrs(attrs_file_name);
+  std::string buf_str;
+  std::string label_name;
+  std::string node_name;
+  std::list<std::string> node_names;
+  std::list<std::string> label_names;
+  std::getline(ifs_attrs, buf_str);
+  while(!ifs_attrs.eof()) {
+    ifs_attrs >> node_name;
+    ifs_attrs >> buf_str;
+    if(buf_str!="=") {
+      std::cerr << "------------------------------------------------\n"
+                << "ERROR: .attrs file is inconsistent! \n"
+                << "------------------------------------------------\n";
+      exit(1);
+    }
+    ifs_attrs >> label_name;
+    node_names.push_back(node_name);
+    label_names.push_back(label_name);
+  }
+
+  std::list<std::string> distinct_node_names = node_names;
+  distinct_node_names.sort();
+  distinct_node_names.unique();
+  N_nodes = distinct_node_names.size();
+  if(N_nodes!=node_names.size() || N_nodes!=label_names.size()) {
+    std::cerr << "------------------------------------------------\n"
+              << "ERROR: .attrs file contains repeated nodes! \n"
+              << "------------------------------------------------\n";
+    exit(2);
+  }
+
+  // Building labels array
+  std::list<std::string> distinct_label_names = label_names;
+  distinct_label_names.sort();
+  distinct_label_names.unique();
+  N_labels = distinct_label_names.size();
+  labels = new label[N_labels];
+  unsigned int i=0;
+  for(std::list<std::string>::iterator it_dln = distinct_label_names.begin(); it_dln!=distinct_label_names.end(); ++it_dln)
+    labels[i++] = label(*it_dln, i);
+
+  // Building nodes array
+  NODES_ARRAY_SIZE = N_nodes + N_additional_nodes;
+  nodes = new node[NODES_ARRAY_SIZE];
+  i=0;
+  for(std::list<std::string>::iterator it_nn = distinct_label_names.begin(); it_nn!=distinct_label_names.end(); ++it_nn)
+    nodes[i++] = node(*it_nn, *it_nn);
+
+
+  // Working with .sif file
+  std::ifstream ifs_sif(sif_file_name);
+  std::string name1;
+  std::string name2;
+  std::string link_type;
+  std::list<std::string> name1s;
+  std::list<std::string> name2s;
+  std::list<std::string> link_types;
+
+  while(!ifs_sif.eof()) {
+    ifs_sif >> name1 >> link_type >> name2;
+    if(name1!="")
+      name1s.push_back(name1);
+    if(name2!="")
+      name2s.push_back(name2);
+    if(link_type!="")
+      link_types.push_back(link_type);
+  }
+
+  if(name1s.size()!=name2s.size() || name1s.size()!=link_types.size()) {
+      std::cerr << "------------------------------------------------\n"
+                << "ERROR: .sif file is inconsistent! \n"
+                << "------------------------------------------------\n";
+      exit(1);
+  }
+  
+  std::list<std::string> all_node_names = name1s;
+  std::list<std::string> name2s_ = name2s;
+  all_node_names.merge(name2s_);
+  all_node_names.sort();
+  all_node_names.unique();
+  if(all_node_names.size() > N_nodes) {
+    std::cerr << "---------------------------------------------------------------\n"
+              << "ERROR: Unlabled nodes detected (inconsistent .sif and .attrs)! \n"
+              << "---------------------------------------------------------------\n";
+    exit(1);
+  }
+
+  // Linking the graph
+  std::list<std::string>::iterator it_name1s=name1s.begin();
+  std::list<std::string>::iterator it_name2s=name2s.begin();
+  std::list<std::string>::iterator it_link_types=link_types.begin();
+  while(it_name1s!=name1s.end())
+    add_link(*it_name1s++, *it_name2s++, *it_link_types++);
+
+  return *this;
+}
+
 graph& graph::build_from_adjacency_matrix(const matrix<bool>& A) {
   ///// CONSISTENCY CHECKS FOR ADJACENCY MATRIX /////
   //Check that matrix is square
@@ -413,7 +569,6 @@ graph& graph::build_from_adjacency_matrix(const matrix<bool>& A) {
     exit(1);
   }
   //Check that matrix is symmetric
-  double sum = 0;
   for(unsigned int i=0; i<dim_y; i++)
     for(unsigned int j=0; j<i; j++)
       if(A[i][j] != A[j][i]) {
@@ -659,7 +814,7 @@ graph& graph::add_link(node* node1, node* node2, const std::string &type, const 
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void graph::add_link(const std::string &node1_name, const std::string &node2_name, const std::string &type, double weight) {
+void graph::add_link(const std::string &node1_name, const std::string &node2_name, const std::string &type, const double& weight) {
   
   node *p_node1 = find_node(node1_name);
   node *p_node2 = find_node(node2_name);
@@ -681,7 +836,7 @@ void graph::add_link(const std::string &node1_name, const std::string &node2_nam
   add_link(p_node1, p_node2, type, weight);
 }
 
-void graph::add_link(const std::string &node1_name, const std::string &node2_name, double &weight) {
+void graph::add_link(const std::string &node1_name, const std::string &node2_name, const double &weight) {
   add_link(node1_name, node2_name, "pp", weight);
 }
 ////////////////////////////////////////////////////////////////////////////

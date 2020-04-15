@@ -2,6 +2,9 @@
 #define __MATRIX_HPP__
 
 #include <string>
+#include <cmath>
+#include <iostream>
+#include <fstream>
 
 template <typename T> class matrix {
 protected:

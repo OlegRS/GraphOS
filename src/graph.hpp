@@ -53,8 +53,8 @@ public:
   graph();
   graph(const graph&);
   graph(const unsigned int& N); //Create graph reserving memory for N nodes
-  graph(const std::string&, unsigned int N_additional_nodes=0); //Load labeled graph from efficient format to array, allocating more memory than needed to add nodes later on.
-  graph(const std::string&, const std::string&);  //Load graph from Cytoscape .sif file and from labels assignment .attrs file
+  graph(const std::string&, const unsigned int& N_additional_nodes=0); //Load labeled graph from efficient format to array, allocating more memory than needed to add nodes later on.
+  // graph(const std::string& sif_file_name, const std::string& attrs_file_name, unsigned int, const unsigned int& N_additional_nodes=0);  //Load graph from Cytoscape .sif file and from labels assignment .attrs file
   graph(const matrix<bool>& adjacency_matrix); //Create simple non-directed graph from adjacency matrix
 
   void append_nodes_array(const unsigned int &N); //Reallocates memory for array of nodes adding extra space for N nodes
@@ -78,8 +78,8 @@ public:
   graph& add_link_no_checks(const unsigned int&, const unsigned int&, const std::string& ="pp", const double& weight=0);
   graph& add_link_no_checks(node* p_node1, node* p_node2, const std::string& ="pp", const double& weight=0);
   graph& add_link(const unsigned int&, const unsigned int&, const std::string& ="pp", const double& weight=0);
-  void add_link(const std::string&, const std::string&, const std::string& ="pp", double=0);
-  void add_link(const std::string&, const std::string&, double&);
+  void add_link(const std::string&, const std::string&, const std::string& ="pp", const double& weight=0);
+  void add_link(const std::string&, const std::string&, const double&);
   graph& add_link(node*, node*, const std::string& ="pp", const double& weight=0);
     
   void remove_link(node*, node*, const std::string& type="pp", const double& weight=0);
@@ -113,6 +113,8 @@ public:
   void save_to_sif_and_attrs(const std::string &name) const; //Saves the graph in Cytoscape recognised format
 
   graph& load(const std::string&, unsigned int N_additional_nodes=0); //Loads the graph with free space for additional nodes
+  graph& load_from_sif(const std::string&, unsigned int N_additional_nodes=0);
+  graph& load_from_sif_and_attrs(const std::string& sif_file_name, const std::string& attrs_file_name, const unsigned int& N_additional_nodes=0); // NEEDS TESTING
   
   graph& build_from_adjacency_matrix(const matrix<bool>& A); //Clears the graph and rebuilds with adjacency matrix A
 

@@ -12,6 +12,13 @@ template <typename T> col_vector<T>::col_vector(const matrix<T> &M) : matrix<T>(
   matrix<T>::dim_y = matrix<T>::dim_x*matrix<T>::dim_y;
   matrix<T>::dim_x = 1;
 }
+template <typename T> col_vector<T>::col_vector(const std::list<T>& L) : matrix<T>(L.size(), 1) {
+  unsigned int i=0;
+  for(typename std::list<T>::const_iterator it_L=L.begin(); it_L!=L.end(); ++it_L) {
+    matrix<T>::array[i] = *it_L;
+    ++i;
+  }
+}
 
 template <typename T> unsigned int col_vector<T>::size() const {
   return matrix<T>::dim_y;
@@ -22,6 +29,21 @@ template <typename T> T col_vector<T>::avrg() const {
   for(unsigned int i=0; i<matrix<T>::dim_y; ++i)
     avrg += matrix<T>::array[i];
   return avrg/(double)matrix<T>::dim_y;
+}
+
+template <typename T> std::list<T> col_vector<T>::unique_elements() const {
+  std::list<T> ue;
+  for(unsigned int i=0; i<matrix<T>::dim_y; ++i) {
+    typename std::list<T>::iterator it_ue = ue.begin();
+    while(it_ue!=ue.end()) {
+      if(*it_ue==(*this)[i])
+        break;
+      ++it_ue;
+    }
+    if(it_ue==ue.end())
+      ue.push_back((*this)[i]);
+  }
+  return ue;
 }
 
 template <typename T> T& col_vector<T>::operator[](const unsigned int &i) const {
