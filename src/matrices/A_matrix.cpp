@@ -85,6 +85,36 @@ double A_matrix::average_p_stars(const unsigned int& p) const {
   return s/dim_x;
 }
 
+unsigned long long A_matrix::num_triangles(const unsigned int& n) const {
+  // Finding adjacent nodes
+  col_vector<unsigned int> an(degree(n)); // Adjacent nodes
+  unsigned int j=0;
+  for(unsigned int i=0; i<dim_x; ++i)
+    if((*this)[i][n])
+      an[j++]=i;
+  // Counting connected adjacent nodes
+  unsigned long long Nt = 0; // Number of triangles of the node
+  for(j=0; j<an.size(); ++j)
+    for(unsigned int k=j+1; k<an.size(); ++k)
+      if((*this)[j][k])
+        ++Nt;
+  return Nt;
+}
+
+unsigned long long A_matrix::num_triangles() const {
+  return 1/6.*((*this)*(*this)*(*this)).tr(); //INEFFICIENT!!!
+}
+
+double A_matrix::loc_clust_coeff(const unsigned int& n) const {
+  return num_triangles(n)/double(num_p_stars(n,2));
+}
+
+col_vector<double> A_matrix::loc_clust_coeff_col_vec() const {
+  col_vector<double> lcc;
+  for(unsigned int i=0; i<dim_x; ++i)
+    lcc[i] = loc_clust_coeff(i);
+  return lcc;
+}
 
 bool A_matrix::check_consistency() const {
   //Check that matrix is square
