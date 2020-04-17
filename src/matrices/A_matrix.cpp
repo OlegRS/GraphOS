@@ -102,7 +102,8 @@ unsigned long long A_matrix::num_triangles(const unsigned int& n) const {
 }
 
 unsigned long long A_matrix::num_triangles() const {
-  return 1/6.*((*this)*(*this)*(*this)).tr(); //INEFFICIENT!!!
+  symm_matrix<uint64_t> S = symm_matrix<uint64_t>(*this);
+  return (S.sqr()*S).tr()/6.; //INEFFICIENT!!!
 }
 
 double A_matrix::loc_clust_coeff(const unsigned int& n) const {
@@ -110,7 +111,7 @@ double A_matrix::loc_clust_coeff(const unsigned int& n) const {
 }
 
 col_vector<double> A_matrix::loc_clust_coeff_col_vec() const {
-  col_vector<double> lcc;
+  col_vector<double> lcc(dim_x);
   for(unsigned int i=0; i<dim_x; ++i)
     lcc[i] = loc_clust_coeff(i);
   return lcc;
