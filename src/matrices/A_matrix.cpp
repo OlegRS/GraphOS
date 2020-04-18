@@ -87,17 +87,20 @@ double A_matrix::average_p_stars(const unsigned int& p) const {
 
 unsigned long long A_matrix::num_triangles(const unsigned int& n) const {
   // Finding adjacent nodes
-  col_vector<unsigned int> an(degree(n)); // Adjacent nodes
+  unsigned int k = degree(n);
+  if(k<2) return 0;
+  
+  col_vector<unsigned int> neighbours(k); // Adjacent nodes
   unsigned int j=0;
-  for(unsigned int i=0; i<dim_x; ++i)
+  for(unsigned int i=0; i<dim_x && j<k; ++i)
     if((*this)[i][n])
-      an[j++]=i;
+      neighbours[j++]=i;
+  
   // Counting connected adjacent nodes
   unsigned long long Nt = 0; // Number of triangles of the node
-  for(j=0; j<an.size(); ++j)
-    for(unsigned int k=j+1; k<an.size(); ++k)
-      if((*this)[j][k])
-        ++Nt;
+  for(j=0; j<k; ++j)
+    for(unsigned int l=0; l<j; ++l)
+      Nt += (*this)[j][l];
   return Nt;
 }
 
@@ -107,7 +110,11 @@ unsigned long long A_matrix::num_triangles() const {
 }
 
 double A_matrix::loc_clust_coeff(const unsigned int& n) const {
-  return num_triangles(n)/double(num_p_stars(n,2));
+  double num_2s = num_p_stars(n,2);
+  if(num_2s!=0)
+    return num_triangles(n)/double(num_2s);
+  else
+    return 0;
 }
 
 col_vector<double> A_matrix::loc_clust_coeff_col_vec() const {
