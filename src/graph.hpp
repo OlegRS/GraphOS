@@ -105,7 +105,7 @@ public:
 
   void replicate_nodes(const unsigned int &replication_factor); //Proportionally creates many nodes with same labels, but different names
 
-  matrix<bool> adjacency_matrix() const;
+  A_matrix adjacency_matrix() const;
 
   void save_labels(const std::string&) const;
   

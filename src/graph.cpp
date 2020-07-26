@@ -1112,17 +1112,17 @@ void graph::replicate_nodes(const unsigned int &replication_factor) {
     
 }
 
-matrix<bool> graph::adjacency_matrix() const {
-  matrix<bool> M(N_nodes, N_nodes);
+A_matrix graph::adjacency_matrix() const {
+  A_matrix A(N_nodes);
   
   for(unsigned int i=0; i<N_nodes; ++i)
     for(unsigned int j=0; j<N_nodes; ++j)
-      M[i][j] = false;
+      A[i][j] = false;
   
   for(std::list<link>::const_iterator it_links = links.begin(); it_links!=links.end(); ++it_links)
-    M[it_links->node1-nodes][it_links->node2-nodes] = M[it_links->node2-nodes][it_links->node1-nodes] = 1;
+    A[it_links->node1-nodes][it_links->node2-nodes] = A[it_links->node2-nodes][it_links->node1-nodes] = 1;
   
-  return M;
+  return A;
 }
 
 ///////////////////////////////////////////////////////////////////////////
