@@ -1,5 +1,5 @@
 # GraphOS
-C++ library for network theory simulations
+C++ library for analysis and simulations of networks
 
 # Purpose
 The library emerged from my studies in various aspects of network theory. The internal representation of the graphs allows working with large sparse networks in a memory efficient way. Can be useful as a tool for working with random graphs and various spin models on networks, especially if the networks are sparse.
@@ -12,7 +12,7 @@ GraphOS can be used to generate random graphs from various user defined ensemble
 Some local and global features of graphs (such as degrees, clustering coefficients, modularity, etc.) can be computed using GraphOS.
 
 ## Spin models on networks
-Various spin models (such as Spin Glasses, Boltzmann Machines, Multi-component Curie-Weiss model, etc.) can be simulated in GraphOS.
+Various spin models (such as Spin Glasses, Boltzmann Machines, Multicomponent Curie-Weiss model, etc.) can be simulated in GraphOS.
 
 ## Classification
 GraphOS can be used to play with unsupervised/semisupervised classification of nodes. Currently only the brute-force precise classifiers are implemented (one based on modularity and another on likelihood maximisation), so classification is only feasible for very small (~10 nodes) graphs.
