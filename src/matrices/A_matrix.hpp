@@ -35,8 +35,8 @@ class A_matrix : public symm_matrix<bool> {//Adjacency matrix
   A_matrix& sample_Markov_ERG_with_single_link_Metropolis(const unsigned int &N_iters, prng& rnd, const col_vector<double> &T, const double theta, const bool &initialize_randomly=true, const double &temp=1); // Samples general homogeneous Markov Exponential Random Graph
   A_matrix& sample_p_star_model(const unsigned int &N_iters, prng& rnd, const col_vector<double> &T, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1);
   A_matrix& sample_p_star_model_with_single_link_Metropolis(const unsigned int &N_iters, prng& rnd, const col_vector<double> &T, const bool &initialize_randomly=true, const double &temp=1);
-  A_matrix& sample_triad_model(const unsigned int &N_iters, prng& rnd, const double h, const double sigma, const double tau, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1);
-  A_matrix& sample_triad_model_with_single_link_Metropolis(const unsigned int &N_iters, prng& rnd, const double h, const double sigma, const double tau, const bool &initialize_randomly=true, const double &temp=1);
+  A_matrix& sample_triad_model(const unsigned int &N_iters, prng& rnd, const double sigma1, const double sigma2, const double theta, const unsigned int &N_pairs_max=1, const bool &initialize_randomly=true, const double &temp=1);
+  A_matrix& sample_triad_model_with_single_link_Metropolis(const unsigned int &N_iters, prng& rnd, const double sigma1, const double sigma2, const double theta, const bool &initialize_randomly=true, const double &temp=1);
 
   // ANALYSIS
   unsigned int size() const {return dim_x;};
