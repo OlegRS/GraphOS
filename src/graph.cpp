@@ -58,43 +58,75 @@ graph::graph(const std::string &graph_file, const unsigned int& N_additional_nod
   NODES_ARRAY_SIZE = N_nodes + N_additional_nodes;
   
   nodes = new node[NODES_ARRAY_SIZE];
-  labels = new label[N_labels];
 
-  std::string  buf1_str, buf2_str, buf3_str;
-  unsigned int buf1_int, buf2_int;
-  
-  for(ifs >> buf1_int >> buf1_str >> buf2_int >> buf2_str; !ifs.eof(); ifs >> buf1_int >> buf1_str >> buf2_int >> buf2_str)
-    if(ifs.get() != '\n') {
-      if(nodes[buf1_int].name != buf1_str) {
-        nodes[buf1_int] = node(buf1_int, buf1_str, buf2_int, buf2_str);
-        labels[buf2_int] = buf2_str;
-      }
+  if(N_labels != 0) {
+    labels = new label[N_labels];
 
-      links.push_back(link());
+    std::string  buf1_str, buf2_str;
+    unsigned int buf1_int, buf2_int;
 
-      links.back().node1 = nodes + buf1_int;
-      nodes[buf1_int].attached_links.push_back(--links.end());
+    for(ifs >> buf1_int >> buf1_str >> buf2_int >> buf2_str; !ifs.eof(); ifs >> buf1_int >> buf1_str >> buf2_int >> buf2_str)
+      if(ifs.get() != '\n') {
+        if(nodes[buf1_int].name != buf1_str) {
+          nodes[buf1_int] = node(buf1_int, buf1_str, buf2_int, buf2_str);
+          labels[buf2_int] = buf2_str;
+        }
+
+        links.push_back(link());
+
+        links.back().node1 = nodes + buf1_int;
+        nodes[buf1_int].attached_links.push_back(--links.end());
         
-      ifs >> links.back().type; //Link type
+        ifs >> links.back().type; //Link type
 
-      ifs >> buf1_int >> buf1_str >> buf2_int >> buf2_str;
+        ifs >> buf1_int >> buf1_str >> buf2_int >> buf2_str;
       
-      if(nodes[buf1_int].name != buf1_str) {
+        if(nodes[buf1_int].name != buf1_str) {
+          nodes[buf1_int] = node(buf1_int, buf1_str, buf2_int, buf2_str);
+          labels[buf2_int] = buf2_str;
+        }
+          
+        links.back().node2 = nodes + buf1_int;
+        nodes[buf1_int].attached_links.push_back(--links.end());
+      
+        ifs >> links.back().weight; //Weight of the link
+      }
+  
+      else {
         nodes[buf1_int] = node(buf1_int, buf1_str, buf2_int, buf2_str);
         labels[buf2_int] = buf2_str;
       }
-          
-      links.back().node2 = nodes + buf1_int;
-      nodes[buf1_int].attached_links.push_back(--links.end());
+  }
+  else {
+    std::string  buf1_str;
+    unsigned int buf1_int, buf2_int;
+
+    for(ifs >> buf1_int >> buf1_str >> buf2_int; !ifs.eof(); ifs >> buf1_int >> buf1_str >> buf2_int)
+      if(ifs.get() != '\n') {
+        if(nodes[buf1_int].name != buf1_str)
+          nodes[buf1_int] = node(buf1_int, buf1_str);
+
+        links.push_back(link());
+
+        links.back().node1 = nodes + buf1_int;
+        nodes[buf1_int].attached_links.push_back(--links.end());
+        
+        ifs >> links.back().type; //Link type
+
+        ifs >> buf1_int >> buf1_str >> buf2_int;
       
-      ifs >> links.back().weight; //Weight of the link
-    }
+        if(nodes[buf1_int].name != buf1_str)
+          nodes[buf1_int] = node(buf1_int, buf1_str);
+          
+        links.back().node2 = nodes + buf1_int;
+        nodes[buf1_int].attached_links.push_back(--links.end());
+      
+        ifs >> links.back().weight; //Weight of the link
+      }
   
-    else {
-      nodes[buf1_int] = node(buf1_int, buf1_str, buf2_int, buf2_str);
-      labels[buf2_int] = buf2_str;
-    }
-  
+      else
+        nodes[buf1_int] = node(buf1_int, buf1_str);
+  }
   ifs.close();
   
 #ifndef SILENT_MODE
@@ -114,7 +146,6 @@ graph::graph(const matrix<bool>& A) : NODES_ARRAY_SIZE(0), N_nodes(0), N_labels(
     exit(1);
   }
   //Check that matrix is symmetric
-  double sum = 0;
   for(unsigned int i=0; i<dim_y; i++)
     for(unsigned int j=0; j<i; j++)
       if(A[i][j] != A[j][i]) {
@@ -137,8 +168,10 @@ graph::graph(const matrix<bool>& A) : NODES_ARRAY_SIZE(0), N_nodes(0), N_labels(
   NODES_ARRAY_SIZE = N_nodes;
   
   nodes = new node[NODES_ARRAY_SIZE];
-  for(unsigned int i=0; i<N_nodes; ++i)
+  for(unsigned int i=0; i<N_nodes; ++i) {
+    nodes[i].id = i;
     nodes[i].name = std::to_string(i) + "_node";
+  }
     
   ///// CREATING LINKS /////
   for(unsigned int i=0; i<N_nodes; ++i)
@@ -334,7 +367,9 @@ void graph::save_to_sif_and_attrs(const std::string &file_name) const {
 }
 /////////////////////////////////////////////////////////////////////////
 graph& graph::load(const std::string &graph_file, unsigned int N_additional_nodes) {
+#ifndef SILENT_MODE
   std::cerr << "***Loading the graph from \".graph\" file...\n";
+#endif
   std::ifstream ifs(graph_file.c_str());
   
   if( !ifs.is_open() ) {
@@ -357,47 +392,78 @@ graph& graph::load(const std::string &graph_file, unsigned int N_additional_node
   NODES_ARRAY_SIZE = N_nodes + N_additional_nodes;
   
   nodes = new node[NODES_ARRAY_SIZE];
-  labels = new label[N_labels];
+  if(N_labels != 0) {
+    labels = new label[N_labels];
 
-  std::string  buf1_str, buf2_str, buf3_str;
-  unsigned int buf1_int, buf2_int;
+    std::string  buf1_str, buf2_str;
+    unsigned int buf1_int, buf2_int;
   
-  for(ifs >> buf1_int >> buf1_str >> buf2_int >> buf2_str; !ifs.eof(); ifs >> buf1_int >> buf1_str >> buf2_int >> buf2_str)
-    if(ifs.get() != '\n') {
-      if(nodes[buf1_int].name != buf1_str) {
-        nodes[buf1_int] = node(buf1_int, buf1_str, buf2_int, buf2_str);
-        labels[buf2_int] = buf2_str;
-      }
+    for(ifs >> buf1_int >> buf1_str >> buf2_int >> buf2_str; !ifs.eof(); ifs >> buf1_int >> buf1_str >> buf2_int >> buf2_str)
+      if(ifs.get() != '\n') {
+        if(nodes[buf1_int].name != buf1_str) {
+          nodes[buf1_int] = node(buf1_int, buf1_str, buf2_int, buf2_str);
+          labels[buf2_int] = buf2_str;
+        }
 
-      links.push_back(link());
+        links.push_back(link());
           
-      links.back().node1 = nodes + buf1_int;
-      nodes[buf1_int].attached_links.push_back(--links.end());
+        links.back().node1 = nodes + buf1_int;
+        nodes[buf1_int].attached_links.push_back(--links.end());
         
-      ifs >> links.back().type; //Link type
+        ifs >> links.back().type; //Link type
 
-      ifs >> buf1_int >> buf1_str >> buf2_int >> buf2_str;
+        ifs >> buf1_int >> buf1_str >> buf2_int >> buf2_str;
       
-      if(nodes[buf1_int].name != buf1_str) {
+        if(nodes[buf1_int].name != buf1_str) {
+          nodes[buf1_int] = node(buf1_int, buf1_str, buf2_int, buf2_str);
+          labels[buf2_int] = buf2_str;
+        }
+          
+        links.back().node2 = nodes + buf1_int;
+        nodes[buf1_int].attached_links.push_back(--links.end());
+      
+        ifs >> links.back().weight; //Weight of the link
+      }
+  
+      else {
         nodes[buf1_int] = node(buf1_int, buf1_str, buf2_int, buf2_str);
         labels[buf2_int] = buf2_str;
       }
-          
-      links.back().node2 = nodes + buf1_int;
-      nodes[buf1_int].attached_links.push_back(--links.end());
-      
-      ifs >> links.back().weight; //Weight of the link
-    }
-  
-    else {
-      nodes[buf1_int] = node(buf1_int, buf1_str, buf2_int, buf2_str);
-      labels[buf2_int] = buf2_str;
-    }
-  
-  ifs.close();
+  }
+  else {
+    std::string  buf1_str;
+    unsigned int buf1_int, buf2_int;
 
-  std::cerr << "*Graph of "<< N_nodes <<" nodes and "<< N_links <<" links is loaded from \"" << graph_file << "\" file.\n";
+    for(ifs >> buf1_int >> buf1_str >> buf2_int; !ifs.eof(); ifs >> buf1_int >> buf1_str >> buf2_int)
+      if(ifs.get() != '\n') {
+        if(nodes[buf1_int].name != buf1_str)
+          nodes[buf1_int] = node(buf1_int, buf1_str);
+
+        links.push_back(link());
+
+        links.back().node1 = nodes + buf1_int;
+        nodes[buf1_int].attached_links.push_back(--links.end());
+        
+        ifs >> links.back().type; //Link type
+
+        ifs >> buf1_int >> buf1_str >> buf2_int;
+      
+        if(nodes[buf1_int].name != buf1_str)
+          nodes[buf1_int] = node(buf1_int, buf1_str);
+          
+        links.back().node2 = nodes + buf1_int;
+        nodes[buf1_int].attached_links.push_back(--links.end());
+      
+        ifs >> links.back().weight; //Weight of the link
+      }
   
+      else
+        nodes[buf1_int] = node(buf1_int, buf1_str);
+  }
+  ifs.close();
+#ifndef SILENT_MODE
+  std::cerr << "*Graph of "<< N_nodes <<" nodes and "<< N_links <<" links is loaded from \"" << graph_file << "\" file.\n";
+#endif
   return *this;
 }
 
@@ -411,8 +477,9 @@ graph& graph::load_from_sif(const std::string& sif_file_name, unsigned int N_add
   std::list<std::string> name2s;
   std::list<std::string> link_types;
 
-  while(!ifs_sif.eof()) {
+  while(1) {
     ifs_sif >> name1 >> link_type >> name2;
+    if(ifs_sif.eof()) break;
     if(name1!="")
       name1s.push_back(name1);
     if(name2!="")
@@ -455,7 +522,9 @@ graph& graph::load_from_sif(const std::string& sif_file_name, unsigned int N_add
 
 
 graph& graph::load_from_sif_and_attrs(const std::string& sif_file_name, const std::string& attrs_file_name, const unsigned int& N_additional_nodes) {
+#ifndef SILENT_MODE
   std::cout << "Loading the graph from .sif and .attrs...\n";
+#endif
   clear();
   // Working with .attrs file as it may contain more nodes (possible disconnected nodes)
   load_from_sif(sif_file_name, N_additional_nodes);
@@ -518,8 +587,9 @@ graph& graph::load_from_sif_and_attrs(const std::string& sif_file_name, const st
   std::list<std::string> name2s;
   std::list<std::string> link_types;
 
-  while(!ifs_sif.eof()) {
+  while(1) {
     ifs_sif >> name1 >> link_type >> name2;
+    if(ifs_sif.eof()) break;
     if(name1!="")
       name1s.push_back(name1);
     if(name2!="")
@@ -1469,8 +1539,9 @@ W_matrix graph::joint_distribution_of_connected_node_degrees() const {
               << "------------------------------------------------------------------------------------------------------\n";
     return W_matrix();
   }
-
+#ifndef QUIET_MODE
   std::cerr << "***Computing full matrix of joint distribution of connected nodes degrees...\n";
+#endif
   
   unsigned int k_max = max_degree();
   unsigned int k_min = min_degree();
@@ -1486,7 +1557,9 @@ W_matrix graph::joint_distribution_of_connected_node_degrees() const {
     for(unsigned int j=k_min; j<=i; ++j)
       W[i][j] = W[j][i] = joint_distribution_of_connected_node_degrees(i, j);
 
+#ifndef QUIET_MODE
   std::cerr << "\n*Joint distribution of connecred node degrees is computed.\n";
+#endif
   return W;
 }
 

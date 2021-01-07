@@ -19,6 +19,7 @@ public:
   node() {}
   node(const std::string &name_) : name(name_) {}
   node(const std::string &name_, const std::string &label_) :  name(name_), label(label_) {}
+  node(const unsigned int &id_, const std::string &name_) : id(id_), name(name_) {}
   node(const unsigned int &id_, const std::string &name_, const unsigned int &label_id, const std::string &label_name) : name(name_), label(label_id,label_name), id(id_)  {}
   node(const node &nd) : name(nd.name), label(nd.label), id(nd.id) {}
   
