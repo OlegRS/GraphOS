@@ -138,7 +138,7 @@ public:
 
   col_vector<node*> nodes_with_max_degree_col_vec() const;
   col_vector<node*> nodes_with_min_degree_col_vec() const;
-  col_vector<node*> nodes_with_degree_col_vec(unsigned int &k) const;
+  col_vector<node*> nodes_with_degree_col_vec(const unsigned int &k) const;
 
   std::string* label_sequence() const; //Implicitly allocates memory!!!
   col_vector<std::string> label_sequence_col_vector() const;

@@ -1,5 +1,5 @@
 # GraphOS
-C++ library for analysis and simulations of networks
+C++ library for analysis and simulation of networks
 
 # Purpose
 The library emerged from my studies in various aspects of network theory. The internal representation of the graphs allows working with large sparse networks in a memory efficient way. Can be useful as a tool for working with random graphs and various spin models on networks, especially if the networks are sparse.

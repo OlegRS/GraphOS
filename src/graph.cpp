@@ -1300,7 +1300,7 @@ col_vector<node*> graph::nodes_with_min_degree_col_vec() const {
   }
 }
 
-col_vector<node*> graph::nodes_with_degree_col_vec(unsigned int &k) const {
+col_vector<node*> graph::nodes_with_degree_col_vec(const unsigned int &k) const {
   if(N_nodes) {
     unsigned int* degrees = degree_sequence();
     
