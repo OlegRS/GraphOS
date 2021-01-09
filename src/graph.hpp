@@ -150,6 +150,7 @@ public:
   col_vector<double> degree_distribution_col_vector() const;
 
   col_vector<double> clustering_coefficient_sequence() const;
+  double global_clustering_coefficient() const; //SUBOPTIMAL IMPLEMENTATION!
 
   double label_distribution(std::string &label_name) const;
   double label_distribution(unsigned int &label_id) const;

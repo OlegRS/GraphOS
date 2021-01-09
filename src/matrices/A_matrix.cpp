@@ -78,11 +78,15 @@ col_vector<long double> A_matrix::num_p_stars_sequence_col_vec(const unsigned in
   return p_stars_sequence;
 }
 
-long double A_matrix::average_p_stars(const unsigned int& p) const {
+long double A_matrix::full_p_stars(const unsigned int& p) const {
   long double s = 0;
   for(unsigned int i=0; i<dim_x; ++i)
     s+=num_p_stars(i, p);
-  return s/dim_x;
+  return s;
+}
+
+long double A_matrix::average_p_stars(const unsigned int& p) const {
+  return full_p_stars(p)/dim_x;
 }
 
 unsigned long long A_matrix::num_triangles(const unsigned int& n) const {

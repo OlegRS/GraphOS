@@ -39,7 +39,7 @@ graph::graph(const std::string &graph_file, const unsigned int& N_additional_nod
 #ifndef SILENT_MODE
   std::cerr << "***Loading the graph from \".graph\" file...\n";
 #endif
-  std::ifstream ifs(graph_file.c_str());
+  std::ifstream ifs(graph_file);
   
   if( !ifs.is_open() ) {
     std::cerr << "------------------------------------------------------------------------\n"
@@ -370,7 +370,7 @@ graph& graph::load(const std::string &graph_file, unsigned int N_additional_node
 #ifndef SILENT_MODE
   std::cerr << "***Loading the graph from \".graph\" file...\n";
 #endif
-  std::ifstream ifs(graph_file.c_str());
+  std::ifstream ifs(graph_file);
   
   if( !ifs.is_open() ) {
     std::cerr << "------------------------------------------------------------------------\n"
@@ -1417,6 +1417,11 @@ col_vector<double> graph::clustering_coefficient_sequence() const {
   for(unsigned int i=0; i<N_nodes; ++i)
     cc_sequence[i] = nodes[i].clustering_coefficient();
   return cc_sequence;
+}
+
+double graph::global_clustering_coefficient() const { //INEFFICIENT!
+  A_matrix A = adjacency_matrix();
+  return A.num_triangles()/A.full_p_stars(2);
 }
 
 double graph::label_distribution(std::string &label_name) const {

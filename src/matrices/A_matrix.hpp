@@ -44,6 +44,7 @@ class A_matrix : public symm_matrix<bool> {//Adjacency matrix
   unsigned int degree(const unsigned int& i) const;
   col_vector<unsigned int> degree_sequence_col_vec() const;
   col_vector<long double> num_p_stars_sequence_col_vec(const unsigned int& p) const;
+  long double full_p_stars(const unsigned int& p) const;
   long double average_p_stars(const unsigned int& p) const;
   long double num_p_stars(const unsigned int& node, const unsigned int& p) const;
   unsigned long long num_triangles(const unsigned int& node) const; // Number of triangles with a given node
